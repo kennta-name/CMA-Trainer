@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Internet Firewall | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="security" data-page="internet-firewall" data-crumb="Internet Firewall">
+<main class="main" id="main">
+  <div class="page-title"><h1>Internet Firewall</h1><span class="muted">インターネット向け通信の許可・ブロック</span></div>
+  <div class="tip"><span><b>ブラックリスト型：</b>一番下の既定ルールは <b>ANY ANY Allow</b>（どのルールにも当たらなければ許可）。業務で必要なサイトを許可するときは、対象の Block ルールより<b>上</b>に Allow ルールを置きます。流れは New → Apply → <b>Save</b> → <b>Publish</b>。</span></div>
+  <div id="pol"></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+App.policy({
+  mount: "#pol", key: "ifw", title: "Internet Firewall", ruleNoun: "Internet Firewall Rule",
+  seed: function () { return { enabled: true, rules: [
+    { id: "i1", name: "Block Risky Categories", enabled: true, source: [], criteria: [], app: ["Category: Gambling", "Category: Anonymizers", "Category: Malware", "Category: Phishing"], service: [], action: "Block", track: true, time: "Always" },
+    { id: "i2", name: "Block Uncategorized", enabled: true, source: [], criteria: [], app: ["Category: Uncategorized"], service: [], action: "Block", track: true, time: "Always" },
+    { id: "i3", name: "Prompt Social Networks", enabled: true, source: ["Group: 全社員"], criteria: [], app: ["Category: Social Networks"], service: [], action: "Prompt", track: false, time: "Working Hours" }
+  ] }; },
+  newRule: function () { return { name: "", enabled: true, source: [], criteria: [], app: [], service: [], action: "Allow", track: true, time: "Always" }; },
+  columns: [
+    { h: "Name", v: function (r) { return App.esc(r.name) + (r._new ? ' <span class="badge b-info">New</span>' : ""); } },
+    { h: "Source", v: function (r) { return App.chipsCell(r.source); } },
+    { h: "App/Category", v: function (r) { return App.chipsCell(r.app); } },
+    { h: "Service/Port", v: function (r) { return App.chipsCell(r.service); } },
+    { h: "Action", v: function (r) { return App.actionBadge(r.action); } },
+    { h: "Track", v: function (r) { return r.track ? "Event" : '<span class="muted">—</span>'; } },
+    { h: "Time", v: function (r) { return App.esc(r.time); } }
+  ],
+  sections: [
+    { title: "Source", fields: [{ key: "source", label: "Source", type: "picker", options: App.opt.sources, help: "空のままなら Any（全員）。部署・ユーザー・サイトで絞ると影響範囲を最小にできます。" }] },
+    { title: "Criteria", fields: [{ key: "criteria", label: "Device Criteria", type: "picker", options: App.opt.posture }] },
+    { title: "App/Category", fields: [{ key: "app", label: "App/Category", type: "picker", options: App.opt.apps, help: "複数選ぶと OR 条件になります。" }] },
+    { title: "Service/Port", fields: [{ key: "service", label: "Service/Port", type: "picker", options: App.opt.services }] },
+    { title: "Action", fields: [{ key: "action", label: "Action", type: "select", options: ["Allow", "Block", "Prompt"], help: "Prompt は警告ページを出し、ユーザーが同意すれば続行させます。" }], summary: function (m) { return m.action; } },
+    { title: "Track", fields: [{ key: "track", label: "Generate Events（Events にログを残す）", type: "toggle", help: "ブロックルールは記録を残すのが基本です。" }], summary: function (m) { return m.track ? "Event" : "None"; } },
+    { title: "Time", fields: [{ key: "time", label: "Time", type: "select", options: ["Always", "Working Hours", "Custom"] }], summary: function (m) { return m.time; } }
+  ],
+  implicitBottom: { cells: ["<b>Default</b>（implicit）", '<span class="muted">Any</span>', '<span class="muted">Any</span>', '<span class="muted">Any</span>', App.actionBadge("Allow"), "—", "Always"] },
+  onPublish: function (pub, prev) {
+    const added = pub.rules.filter(function (r) { return r.action === "Allow" && !prev.rules.some(function (p) { return p.id === r.id; }); });
+    if (added.length) App.complete("ifw_allow");
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sites | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="network" data-page="sites" data-crumb="Sites">
+<main class="main" id="main">
+  <div class="page-title"><h1>Sites</h1><span class="muted" id="count"></span></div>
+  <div class="tip"><span><b>拠点の追加：</b>［New］→ Add Site パネルで入力 →［Apply］。Connection Type と City（メンテナンス時間帯に影響）は正確に。Native Range は他拠点と重複させないこと。</span></div>
+  <div class="card">
+    <div class="pol-bar">
+      <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search sites" aria-label="サイトを検索"></div>
+      <div class="btn-group" style="margin-left:auto"><button class="btn btn-primary" id="btnNew" type="button">＋ New</button></div>
+    </div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Status</th><th>Site Type</th><th>Connection Type</th><th>Location</th><th>Connected PoP</th><th>Native Range</th><th>License</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+</main>
+
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  let flashId = null;
+  function draw() {
+    const q = document.getElementById("q").value.trim().toLowerCase();
+    const sites = App.sites();
+    document.getElementById("count").textContent = sites.length + " sites";
+    document.getElementById("rows").innerHTML = sites.filter(function (s) { return !q || (s.name + s.city + s.conn).toLowerCase().includes(q); }).map(function (s) {
+      const st = s.status === "Connected" ? '<span class="dot ok"></span>Connected' : s.status === "Disconnected" ? '<span class="dot ng"></span>Disconnected' : '<span class="dot warn"></span>Pending';
+      return '<tr class="clickable ' + (s.id === flashId ? "flash" : "") + '" data-id="' + s.id + '"><td><a href="site.html" data-open="' + s.id + '">' + App.esc(s.name) + "</a></td><td>" + st + "</td><td>" + App.esc(s.type) + "</td><td>" + App.esc(s.conn) + "</td><td>" + App.esc(s.city + ", " + s.country) + "</td><td>" + App.esc(s.pop) + '</td><td class="mono">' + App.esc(s.native) + "</td><td>" + App.esc(s.license) + "</td></tr>";
+    }).join("");
+    document.querySelectorAll("#rows tr").forEach(function (tr) {
+      tr.addEventListener("click", function (e) { e.preventDefault(); App.db.set("selectedSite", tr.dataset.id); location.href = "site.html"; });
+    });
+  }
+  const CONN = ["Socket X1500", "Socket X1600", "Socket X1600 LTE", "Socket X1700", "vSocket AWS", "vSocket Azure", "vSocket ESX", "vSocket GCP", "IPsec IKEv2", "IPsec IKEv1 (Cato-initiated)"];
+  const CITY = { Japan: ["Tokyo", "Osaka", "Nagoya", "Fukuoka", "Sapporo", "Sendai"], Singapore: ["Singapore"], "United States": ["Los Angeles", "New York", "Chicago"] };
+  function openNew() {
+    const isSock = function (m) { return m.conn.indexOf("IPsec") < 0; };
+    App.panel({
+      title: "Add Site",
+      model: { name: "", type: "Branch", conn: "Socket X1600", country: "Japan", city: "Tokyo", tz: "Asia/Tokyo", wan2: false, w1d: 100, w1u: 100, w2d: 50, w2u: 50, native: "", license: "Japan - 100 Mbps" },
+      intro: "ゼロタッチ導入の準備です。ここで作ったサイトに Socket のシリアルを紐づけておけば、現地では回線とLANをつないで電源を入れるだけで PoP に接続します。",
+      sections: [
+        { title: "General", open: true, fields: [
+          { key: "name", label: "Site Name", req: true, placeholder: "例：JP-NGO-BR02（国-都市-拠点）" },
+          { key: "type", label: "Site Type", type: "select", options: ["Branch", "Headquarters", "Data Center", "Cloud Data Center"], help: "Topology 上のアイコンが変わるだけです。" },
+          { key: "conn", label: "Connection Type", type: "select", options: CONN, rerender: true, help: "使える機能が変わります。Socket の型番・接続方式を正確に選びます。" },
+          { key: "country", label: "Country", type: "select", options: Object.keys(CITY), rerender: true },
+          { key: "city", label: "City", type: "select", options: function (m) { return CITY[m.country] || ["—"]; }, help: "最寄りの PoP の選択に使われます。一覧にない場合は最寄りの都市を選びます。" },
+          { key: "tz", label: "Time Zone", type: "select", options: ["Asia/Tokyo", "Asia/Singapore", "America/Los_Angeles"], help: "Socket の自動アップグレード（メンテナンス時間帯）の基準になります。" }
+        ], summary: function (m) { return m.conn; } },
+        { title: "WAN Interface Settings", showIf: isSock, fields: [
+          { key: "wan2", label: "Enable WAN2（2本目の回線がある場合）", type: "toggle", rerender: true },
+          { key: "w1d", label: "WAN1 Bandwidth - Downstream (Mbps)", type: "number" },
+          { key: "w1u", label: "WAN1 Bandwidth - Upstream (Mbps)", type: "number", help: "ライセンス帯域に合わせます。回線がライセンスより遅いときは回線の実速度を入れます。" },
+          { key: "w2d", label: "WAN2 Bandwidth - Downstream (Mbps)", type: "number", showIf: function (m) { return m.wan2; } },
+          { key: "w2u", label: "WAN2 Bandwidth - Upstream (Mbps)", type: "number", showIf: function (m) { return m.wan2; } }
+        ], summary: function (m) { return m.w1d + "/" + m.w1u + " Mbps" + (m.wan2 ? " + WAN2" : ""); } },
+        { title: "LAN Interface Settings", fields: [
+          { key: "native", label: "Native Range", req: true, placeholder: "例：10.30.0.0/24", help: "CIDR 形式（/32 は不可）。他の拠点・SDPユーザー用アドレスと重複させないこと。" }
+        ], summary: function (m) { return m.native || "未入力"; } },
+        { title: "License", fields: [
+          { key: "license", label: "License", type: "select", options: ["Japan - 50 Mbps", "Japan - 100 Mbps", "Japan - 200 Mbps", "Japan - 500 Mbps", "APJ - 100 Mbps"] }
+        ], summary: function (m) { return m.license; } }
+      ],
+      onApply: function (m) {
+        if (!m.name.trim()) { App.toast("Site Name を入力してください。", "ng"); return false; }
+        if (!/^\d{1,3}(\.\d{1,3}){3}\/(\d|[12]\d|3[01])$/.test(m.native.trim())) { App.toast("Native Range は 10.30.0.0/24 のような CIDR 形式で入力してください（/32 は不可）。", "ng"); return false; }
+        const sites = App.sites();
+        if (sites.some(function (s) { return s.native === m.native.trim(); })) { App.toast("その Native Range は既に他のサイトで使われています。重複は避けてください。", "ng"); return false; }
+        const id = App.uid();
+        const parts = m.native.trim().split("/")[0].split(".");
+        sites.push({ id: id, name: m.name.trim(), type: m.type, conn: m.conn, country: m.country, city: m.city, tz: m.tz, status: "Pending", pop: "—", native: m.native.trim(),
+          localIp: parts.slice(0, 3).join(".") + ".1", ha: false,
+          wan1: { name: "WAN1", isp: "（未接続）", down: m.w1d, up: m.w1u, role: "Active" },
+          wan2: m.wan2 ? { name: "WAN2", isp: "（未接続）", down: m.w2d, up: m.w2u, role: "Active" } : null, license: m.license });
+        App.db.set("sites", sites);
+        App.audit("Sites", "Create", m.name.trim(), m.conn + " / " + m.city + " / " + m.native.trim());
+        App.complete("site_add");
+        App.toast("サイト「" + App.esc(m.name.trim()) + "」を追加しました。Socket が接続されるまでは Pending と表示されます。", "ok", 6000);
+        flashId = id; draw();
+      }
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    draw();
+    document.getElementById("q").addEventListener("input", draw);
+    document.getElementById("btnNew").addEventListener("click", openNew);
+  });
+})();
+</script>
+
+</body>
+</html>

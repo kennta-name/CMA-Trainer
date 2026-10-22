@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IP Allocation | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="network" data-page="ip-allocation" data-crumb="IP Allocation">
+<main class="main" id="main">
+  <div class="page-title"><h1>IP Allocation</h1><span class="muted">自社専用の固定送信元IP（Allocated IP）</span></div>
+  <div class="tip"><span><b>なぜ必要？</b>Cato 経由の通信は、何もしなければ PoP の<b>共有IP</b>から外に出ます（変わる可能性あり）。取引先やSaaSの IP 制限に登録するのは、ここで割り当てた <b>Allocated IP</b> です。割り当て後、Network Rules の NAT で使います。</span></div>
+  <div class="card">
+    <div class="pol-bar">
+      <label for="loc" class="muted">Location</label>
+      <select class="select" id="loc" style="width:auto;min-width:180px"></select>
+      <button class="btn" id="add" type="button">＋ Allocate</button>
+      <span class="muted" id="lic"></span>
+      <div class="btn-group" style="margin-left:auto"><button class="btn btn-primary" id="save" type="button" disabled>Save</button></div>
+    </div>
+    <div class="status-banner pub" id="banner">割り当て済みのIPアドレスを表示しています。</div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>IP Address</th><th>Location (PoP)</th><th>Allocated</th><th>Used in Network Rules</th><th style="width:60px"></th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  const LIMIT = 4;
+  let list = App.db.get("ipalloc", []);
+  let dirty = false;
+  const pool = { Tokyo: "203.0.113.", Osaka: "198.51.100.", Sapporo: "192.0.2.", Singapore: "203.0.113.", "Hong Kong": "198.51.100.", "Los Angeles": "192.0.2.", Frankfurt: "203.0.113." };
+  function usedIn(ip) {
+    const st = App.db.get("pol.nr", null);
+    if (!st) return "—";
+    const names = st.published.rules.filter(function (r) { return r.routeNat === "NAT" && String(r.natIp).indexOf(ip) === 0; }).map(function (r) { return r.name; });
+    return names.length ? App.esc(names.join(", ")) : '<span class="muted">未使用</span>';
+  }
+  function draw() {
+    document.getElementById("loc").innerHTML = App.opt.locations.map(function (l) { return "<option>" + l + "</option>"; }).join("");
+    document.getElementById("lic").textContent = "ライセンス上限：" + list.length + " / " + LIMIT;
+    document.getElementById("save").disabled = !dirty;
+    const b = document.getElementById("banner");
+    b.className = "status-banner " + (dirty ? "dirty" : "pub");
+    b.innerHTML = dirty ? "<b>未保存の変更があります。</b>［Save］を押すとIPアドレスが確定します。" : "割り当て済みのIPアドレスを表示しています。";
+    document.getElementById("rows").innerHTML = list.length ? list.map(function (a, i) {
+      return '<tr class="' + (a.pending ? "new-row" : "") + '"><td class="mono">' + (a.pending ? '<span class="muted">（Save で割り当て）</span>' : App.esc(a.ip)) + "</td><td>" + App.esc(a.loc) + '</td><td class="num">' + (a.pending ? "—" : App.fmt(a.t)) + "</td><td>" + (a.pending ? "—" : usedIn(a.ip)) + '</td><td><button class="kebab" type="button" data-del="' + i + '" aria-label="削除">' + App.icon("trash") + "</button></td></tr>";
+    }).join("") : '<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">割り当て済みのIPはありません。Location を選んで［Allocate］→［Save］します。</td></tr>';
+    document.querySelectorAll("[data-del]").forEach(function (btn) {
+      btn.onclick = function () { list.splice(+btn.dataset.del, 1); dirty = true; draw(); App.toast("削除しました（未保存）。外部サービスに登録済みのIPを消すと通信できなくなるので注意。", "warn", 6000); };
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    draw();
+    document.getElementById("add").onclick = function () {
+      if (list.length >= LIMIT) { App.toast("ライセンスの上限に達しています。追加は販売代理店に相談します。", "ng"); return; }
+      list.push({ loc: document.getElementById("loc").value, pending: true }); dirty = true; draw();
+    };
+    document.getElementById("save").onclick = function () {
+      let n = 0;
+      list.forEach(function (a) {
+        if (a.pending) { a.ip = pool[a.loc] + (20 + Math.floor(Math.random() * 200)); a.t = Date.now(); delete a.pending; n++; App.audit("IP Allocation", "Create", a.ip, "Location: " + a.loc); }
+      });
+      App.db.set("ipalloc", list); dirty = false; draw();
+      App.toast(n ? "IPアドレスを割り当てました。次は Network Rules の NAT で使いましょう。" : "保存しました。", "ok", 5000);
+      if (list.length) App.complete("ip_alloc");
+    };
+  });
+})();
+</script>
+
+</body>
+</html>

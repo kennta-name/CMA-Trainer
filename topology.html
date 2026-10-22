@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TLS Inspection | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="security" data-page="tls" data-crumb="TLS Inspection">
+<main class="main" id="main">
+  <div class="page-title"><h1>TLS Inspection</h1><span class="muted">HTTPS 通信を復号して検査する</span></div>
+  <div class="tip"><span><b>有効化の前に：</b>すべての端末にルート証明書を「信頼されたルート証明機関」として配布しておきます（入っていない端末は証明書エラーになります）。証明書は入っているのに動かない業務アプリは、<b>Bypass</b> ルールで検査対象から外します。いきなり全社ではなく、パイロットユーザーから始めるのが安全です。</span></div>
+  <div id="pol"></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+App.policy({
+  mount: "#pol", key: "tls", title: "TLS Inspection", ruleNoun: "TLS Inspection Rule", startRev: 1,
+  hasEnable: true, enableLabel: "Enable TLS Inspection", enabledText: "有効：既定ルール（下の ANY-ANY Inspect）で検査します", disabledText: "無効：HTTPS の中身は検査されません（脅威防御・DLP の効果が限定的）",
+  enableExtra: '<button class="btn" type="button" style="margin-left:auto" onclick="App.toast(\'研修版のためルート証明書はダウンロードしません。実機では MDM（Intune など）で全端末に配布します。\', \'warn\', 6000)">Download Root Certificate</button>',
+  seed: function () { return { enabled: false, rules: [
+    { id: "t1", name: "Bypass - Financial & Health", enabled: true, source: [], app: ["Category: Financial Services", "Category: Health & Medicine"], action: "Bypass" }
+  ] }; },
+  lockedTopTitle: "Default Bypass Rules（Cato 管理・編集不可）",
+  lockedTop: [
+    { name: "Bypass - Operating Systems", source: ["OS: Android", "OS: Linux", "OS: Unknown"], app: [], action: "Bypass" },
+    { name: "Bypass - Applications（証明書ピン留め等）", source: [], app: ["Cato managed app list"], action: "Bypass" }
+  ],
+  userSectionTitle: "Rules（自社で追加するルール）",
+  newRule: function () { return { name: "", enabled: true, source: [], app: [], action: "Bypass" }; },
+  columns: [
+    { h: "Name", v: function (r) { return App.esc(r.name) + (r._new ? ' <span class="badge b-info">New</span>' : ""); } },
+    { h: "Source", v: function (r) { return App.chipsCell(r.source); } },
+    { h: "App/Category", v: function (r) { return App.chipsCell(r.app); } },
+    { h: "Action", v: function (r) { return App.actionBadge(r.action); } }
+  ],
+  sections: [
+    { title: "Source", fields: [{ key: "source", label: "Source", type: "picker", options: App.opt.sources }] },
+    { title: "App/Category", fields: [{ key: "app", label: "App/Category", type: "picker", options: App.opt.apps, help: "例：証明書エラーで動かない業務アプリのドメイン、Windows Update など。" }] },
+    { title: "Action", fields: [{ key: "action", label: "Action", type: "select", options: ["Bypass", "Inspect"] }], summary: function (m) { return m.action; } }
+  ],
+  implicitBottom: { cells: ["<b>Default</b>（ANY-ANY）", '<span class="muted">Any</span>', '<span class="muted">Any</span>', App.actionBadge("Inspect")] },
+  onPublish: function (pub, prev) {
+    const newBypass = pub.rules.some(function (r) { return r.action === "Bypass" && !prev.rules.some(function (p) { return p.id === r.id; }); });
+    if (pub.enabled && newBypass) App.complete("tls_bypass");
+    else if (pub.enabled) App.toast("次は、証明書エラーになる業務アプリ（例：Domain: legacy-app.example.co.jp）の Bypass ルールを追加してみましょう。", "warn", 6500);
+  }
+});
+</script>
+
+</body>
+</html>

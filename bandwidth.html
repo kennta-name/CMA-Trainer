@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Audit Trail | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="audit-trail" data-crumb="Audit Trail">
+<main class="main" id="main">
+  <div class="page-title"><h1>Audit Trail</h1><span class="muted">管理者の操作履歴（誰が・いつ・何を変えたか）</span></div>
+  <div class="tip"><span>障害が起きたら、まず「直前に誰かが設定を変えていないか」をここで確認する習慣をつけましょう。実機では過去12か月分を、1回に最大3か月まで表示できます。</span></div>
+  <div class="card">
+    <div class="pol-bar">
+      <select class="select" id="range" style="width:auto" aria-label="期間"><option value="1">Last 24 Hours</option><option value="7" selected>Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last 3 Months</option></select>
+      <select class="select" id="mod" style="width:auto" aria-label="モジュール"></select>
+      <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search（管理者・操作・対象）" aria-label="検索"></div>
+      <label class="check" style="margin-left:auto"><input type="checkbox" id="mine">自分の操作のみ</label>
+    </div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Time</th><th>Admin</th><th>Module</th><th>Action</th><th>Object</th><th>Details</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  const list = App.db.get("audit", App.seedAudit);
+  if (list.some(function (a) { return a.mine; })) App.complete("audit_check");
+  else setTimeout(function () { App.toast("まだ自分の操作がありません。何か設定を変更してから、もう一度開いてみましょう。", "warn", 6000); }, 500);
+  const mods = Array.from(new Set(list.map(function (a) { return a.module; })));
+  function draw() {
+    const days = +document.getElementById("range").value, mod = document.getElementById("mod").value, q = document.getElementById("q").value.trim().toLowerCase(), mine = document.getElementById("mine").checked;
+    const rows = list.filter(function (a) { return Date.now() - a.t <= days * 864e5 && (!mod || a.module === mod) && (!mine || a.mine) && (!q || (a.admin + a.module + a.action + a.object + a.detail).toLowerCase().includes(q)); });
+    document.getElementById("rows").innerHTML = rows.length ? rows.map(function (a) {
+      return "<tr" + (a.mine ? ' class="new-row"' : "") + '><td class="num">' + App.fmt(a.t) + "</td><td>" + App.esc(a.admin) + "</td><td>" + App.esc(a.module) + "</td><td>" + '<span class="badge ' + ({ Publish: "b-ok", Create: "b-ok", Delete: "b-ng", Save: "b-warn" }[a.action] || "b-info") + '">' + App.esc(a.action) + "</span>" + "</td><td>" + App.esc(a.object) + '</td><td style="max-width:380px">' + App.esc(a.detail) + "</td></tr>";
+    }).join("") : '<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">条件に合う操作履歴がありません</td></tr>';
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("mod").innerHTML = '<option value="">All Modules</option>' + mods.map(function (m) { return "<option>" + App.esc(m) + "</option>"; }).join("");
+    ["range", "mod", "mine"].forEach(function (id) { document.getElementById(id).addEventListener("change", draw); });
+    document.getElementById("q").addEventListener("input", draw);
+    draw();
+  });
+})();
+</script>
+
+</body>
+</html>
