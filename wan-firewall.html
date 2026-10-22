@@ -3,94 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Users | CMA Trainer</title>
+<title>WAN Firewall | CMA Trainer</title>
 <meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body data-tab="access" data-page="users" data-crumb="Users">
+<body data-tab="security" data-page="wan-firewall" data-crumb="WAN Firewall">
 <main class="main" id="main">
-  <div class="page-title"><h1>Users</h1><span class="muted" id="cnt"></span></div>
-  <div class="tip"><span><b>おすすめは SCIM 連携：</b>Entra ID / Okta などで社員を追加・無効化すると、ほぼリアルタイムで Cato にも反映されます。<b>退職者対応は IdP 側で無効化</b>するのが原則で、SCIM 由来のユーザーをここで直接消しても、次の同期で戻ってしまいます。リモート接続には SDP ライセンスの割り当てが必要です。</span></div>
-  <div class="card">
-    <div class="subtabs" role="tablist"><button role="tab" aria-selected="true" type="button">Users Directory</button><button role="tab" aria-selected="false" type="button" data-na="User Groups">User Groups</button></div>
-    <div class="pol-bar">
-      <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search users" aria-label="ユーザーを検索"></div>
-      <label class="check"><input type="checkbox" id="onlyConn">接続中のみ</label>
-      <div class="btn-group" style="margin-left:auto"><a class="btn" href="directory-services.html">Directory Services</a><button class="btn btn-primary" id="new" type="button">＋ New</button></div>
-    </div>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Groups</th><th>SDP License</th><th>Client Status</th><th>Last Connected</th><th>OS</th><th>Origin</th></tr></thead><tbody id="rows"></tbody></table></div>
-  </div>
+  <div class="page-title"><h1>WAN Firewall</h1><span class="muted">拠点・リモートユーザー・クラウド間の通信制御</span></div>
+  <div class="tip"><span><b>ホワイトリスト型：</b>一番下の既定ルールは <b>ANY ANY Block</b>。許可していない社内通信はすべて遮断されます。新しい業務システムを追加したら、ここに許可ルールが必要か確認します。「Firewall Enabled」をオフにするとアクセス制御が一切なくなるため、通常は触りません。</span></div>
+  <div id="pol"></div>
 </main>
 <script src="assets/app.js"></script>
 <script>
-(function () {
-  let users = App.users();
-  let flash = null;
-  function draw() {
-    const q = document.getElementById("q").value.trim().toLowerCase();
-    const oc = document.getElementById("onlyConn").checked;
-    document.getElementById("cnt").textContent = users.length + " users / SDP " + users.filter(function (u) { return u.sdp; }).length + " licenses";
-    document.getElementById("rows").innerHTML = users.filter(function (u) { return (!q || (u.last + u.first + u.email + u.groups.join()).toLowerCase().includes(q)) && (!oc || u.connected); }).map(function (u) {
-      return '<tr class="clickable ' + (u.id === flash ? "flash" : "") + '" data-id="' + u.id + '"><td>' + App.esc(u.last + " " + u.first) + "</td><td>" + App.esc(u.email) + "</td><td>" + App.chipsCell(u.groups, "—") + "</td><td>" +
-        (u.sdp ? '<span class="badge b-ok">Assigned</span>' : '<span class="badge b-gray">None</span>') + "</td><td>" + (u.disabled ? '<span class="badge b-ng">Disabled</span>' : u.connected ? '<span class="dot ok"></span>Connected' : '<span class="dot gray"></span>Disconnected') +
-        '</td><td class="num">' + (u.lastConn ? App.fmtShort(u.lastConn) : "—") + "</td><td>" + App.esc(u.os || "—") + "</td><td>" + (u.origin === "SCIM" ? '<span class="badge b-info">SCIM</span>' : '<span class="badge b-gray">Manual</span>') + "</td></tr>";
-    }).join("") || '<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">一致するユーザーがいません</td></tr>';
-    flash = null;
-    document.querySelectorAll("#rows tr[data-id]").forEach(function (tr) { tr.onclick = function () { edit(tr.dataset.id); }; });
+App.policy({
+  mount: "#pol", key: "wan", title: "WAN Firewall", ruleNoun: "WAN Firewall Rule",
+  hasEnable: true, enableLabel: "Firewall Enabled", enabledText: "有効（ルールに従って制御）", disabledText: "無効：アクセス制御なし。全員がすべての社内リソースに到達できます",
+  enableWarnOff: "WAN Firewall を無効にすると<b>アクセス制御が一切なくなり</b>、誰でもすべての社内リソースに到達できるようになります。本当に無効にしますか？",
+  seed: function () { return { enabled: true, rules: [
+    { id: "w1", name: "HQ to All Sites", enabled: true, source: ["Site: JP-TKY-HQ"], direction: "Both", dest: [], app: [], service: [], action: "Allow", track: true },
+    { id: "w2", name: "Users to FileServer (SMB)", enabled: true, source: ["SDP Users (all)", "Site: JP-OSA-BR01"], direction: "→", dest: ["Host: FileServer (10.10.0.20)"], app: [], service: ["SMB"], action: "Allow", track: true },
+    { id: "w3", name: "Branch to ERP on AWS", enabled: true, source: ["Site: JP-OSA-BR01"], direction: "→", dest: ["Host: ERP (172.16.1.10)"], app: [], service: ["HTTPS"], action: "Allow", track: true },
+    { id: "w4", name: "Block RDP from SDP Users", enabled: true, source: ["SDP Users (all)"], direction: "→", dest: [], app: [], service: ["RDP"], action: "Block", track: true }
+  ] }; },
+  newRule: function () { return { name: "", enabled: true, source: [], direction: "→", dest: [], app: [], service: [], action: "Allow", track: true }; },
+  columns: [
+    { h: "Name", v: function (r) { return App.esc(r.name) + (r._new ? ' <span class="badge b-info">New</span>' : ""); } },
+    { h: "Source", v: function (r) { return App.chipsCell(r.source); } },
+    { h: "Dir", v: function (r) { return r.direction === "Both" ? "⇄" : "→"; } },
+    { h: "Destination", v: function (r) { return App.chipsCell(r.dest); } },
+    { h: "App/Category", v: function (r) { return App.chipsCell(r.app); } },
+    { h: "Service/Port", v: function (r) { return App.chipsCell(r.service); } },
+    { h: "Action", v: function (r) { return App.actionBadge(r.action); } }
+  ],
+  generalExtra: [{ key: "direction", label: "Direction", type: "select", options: [["→", "→（Source から Destination）"], ["Both", "Both（双方向）"]] }],
+  sections: [
+    { title: "Source", fields: [{ key: "source", label: "Source", type: "picker", options: App.opt.sources }] },
+    { title: "Destination", fields: [{ key: "dest", label: "Destination", type: "picker", options: App.opt.destinations, help: "空のままなら Any。" }] },
+    { title: "App/Category", fields: [{ key: "app", label: "App/Category", type: "picker", options: App.opt.apps }] },
+    { title: "Service/Port", fields: [{ key: "service", label: "Service/Port", type: "picker", options: App.opt.services }] },
+    { title: "Action", fields: [{ key: "action", label: "Action", type: "select", options: ["Allow", "Block", "Prompt"] }], summary: function (m) { return m.action; } },
+    { title: "Track", fields: [{ key: "track", label: "Generate Events", type: "toggle" }], summary: function (m) { return m.track ? "Event" : "None"; } }
+  ],
+  implicitBottom: { tip: "【既定ルール：Any Any Block】どのルールにも一致しなかった社内通信はすべて遮断されます（ホワイトリスト型）。通したい通信は、この上に Allow ルールを追加します。", cells: ["<b>Default</b>（implicit）", '<span class="muted">Any</span>', "⇄", '<span class="muted">Any</span>', '<span class="muted">Any</span>', '<span class="muted">Any</span>', App.actionBadge("Block")] },
+  onPublish: function (pub, prev) {
+    if (pub.rules.some(function (r) { return r.action === "Allow" && !prev.rules.some(function (p) { return p.id === r.id; }); })) App.complete("wan_rule");
   }
-  function persist() { App.db.set("users", users); }
-  function edit(id) {
-    const u = users.find(function (x) { return x.id === id; });
-    const scim = u.origin === "SCIM";
-    App.panel({
-      title: "Edit User",
-      model: { name: u.last + " " + u.first, email: u.email, sdp: u.sdp, disabled: !!u.disabled },
-      intro: scim ? "このユーザーは <b>SCIM（IdP）から同期</b>されています。氏名・グループ・有効/無効は IdP 側で変更します。ここで変更できるのはライセンスなど Cato 側の設定だけです。" : null,
-      sections: [{ title: "User", open: true, fields: [
-        { key: "name", label: "Name", help: scim ? "IdP 管理のため変更不可" : "" },
-        { key: "email", label: "Email" },
-        { key: "sdp", label: "SDP License（リモートアクセスを許可）", type: "toggle", help: "割り当てると Client 導入のアクティベーションメールが送られます。" },
-        { key: "disabled", label: "Disable User（接続を止める）", type: "toggle", showIf: function () { return !scim; } }
-      ] }],
-      onApply: function (m) {
-        if (!scim) { const p = m.name.trim().split(/\s+/); u.last = p[0] || u.last; u.first = p.slice(1).join(" "); u.email = m.email; u.disabled = m.disabled; if (m.disabled) u.connected = false; }
-        if (u.sdp !== m.sdp) App.audit("Users", "Update", u.email, "SDP License: " + (u.sdp ? "Assigned" : "None") + " → " + (m.sdp ? "Assigned" : "None"));
-        u.sdp = m.sdp; persist(); flash = u.id; draw();
-        App.toast(m.sdp ? "保存しました。" + (scim ? "" : "") : "SDP ライセンスを外しました。このユーザーはリモート接続できなくなります。", "ok");
-      },
-      onDelete: function () {
-        if (scim) { App.toast("SCIM で同期されたユーザーは、IdP（Entra ID など）側で無効化・削除してください。ここで消しても次の同期で戻ります。", "warn", 7000); return; }
-        users = users.filter(function (x) { return x.id !== u.id; }); persist(); App.audit("Users", "Delete", u.email, "Manual user"); App.closePanel(); draw(); App.toast("ユーザーを削除しました。", "ok");
-      }
-    });
-  }
-  document.addEventListener("DOMContentLoaded", function () {
-    draw();
-    document.getElementById("q").addEventListener("input", draw);
-    document.getElementById("onlyConn").addEventListener("change", draw);
-    document.getElementById("new").onclick = function () {
-      App.panel({
-        title: "Add User", model: { first: "", last: "", email: "", group: "全社員", sdp: true },
-        intro: "手動作成は少人数・検証用です。本番では SCIM / LDAP による同期を使います。",
-        sections: [{ title: "General", open: true, fields: [
-          { key: "last", label: "Last Name（姓）", req: true }, { key: "first", label: "First Name（名）", req: true },
-          { key: "email", label: "Email", req: true, placeholder: "例：newuser@example.co.jp" },
-          { key: "group", label: "Group", type: "select", options: ["全社員", "営業部", "経理部", "情報システム部", "業務委託"] },
-          { key: "sdp", label: "SDP License を割り当てる", type: "toggle" }
-        ] }],
-        onApply: function (m) {
-          if (!m.last.trim() || !m.email.trim()) { App.toast("姓と Email を入力してください。", "ng"); return false; }
-          const nu = { id: App.uid(), first: m.first.trim(), last: m.last.trim(), email: m.email.trim(), groups: [m.group], sdp: m.sdp, connected: false, origin: "Manual", lastConn: null, os: "" };
-          users.unshift(nu); persist(); flash = nu.id; draw();
-          App.audit("Users", "Create", nu.email, "Manual / Group: " + m.group);
-          App.toast("ユーザーを追加しました。" + (m.sdp ? "アクティベーションメールが送信されます（研修では送信されません）。" : ""), "ok", 5000);
-        }
-      });
-    };
-  });
-})();
+});
 </script>
 
 </body>

@@ -3,66 +3,178 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Network Rules | CMA Trainer</title>
+<title>Site Monitoring | CMA Trainer</title>
 <meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body data-tab="network" data-page="network-rules" data-crumb="Network Rules">
+<body data-tab="network" data-page="site" data-crumb="<a href=&quot;sites.html&quot;>Sites</a><span class=&quot;sep&quot;>/</span><span id=&quot;crumbSite&quot;></span>">
+<style>
+  .site-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .site-head h1 { font-size: 20px; font-weight: 400; }
+  .alert-bar { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; background: var(--ng-soft); color: #9b1c23; border: 1px solid #f3c2c5; border-radius: 3px; margin-bottom: 12px; }
+  .range { display: flex; gap: 6px; }
+  .range button { border: 1px solid var(--line-strong); background: #fff; padding: 3px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+  .range button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+</style>
+
 <main class="main" id="main">
-  <div class="page-title"><h1>Network Rules</h1><span class="muted">経路・優先度（QoS）・出口（Route Via / NAT）の制御</span></div>
-  <div class="tip"><span><b>ポイント：</b>Source・App/Category・Destination の間は AND 条件。<b>Bandwidth Priority は数字が小さいほど優先</b>（新規ルールの既定は p255）。Internet ルールの Route/NAT で <b>NAT</b> を選ぶと、IP Allocation で割り当てた固定IPから外に出せます。Route Via / NAT を使うルールは Source か App を必ず具体的に指定します。</span></div>
-  <div id="pol"></div>
+  <div id="view"></div>
 </main>
+
 <script src="assets/app.js"></script>
 <script>
 (function () {
-  const allocated = function () { return App.db.get("ipalloc", []).map(function (a) { return a.ip + "（" + a.loc + "）"; }); };
-  const prios = function () { return App.db.get("bw", null) ? App.db.get("bw").map(function (b) { return ["p" + b.priority, "p" + b.priority + "（" + b.name + "）"]; }) : [["p10", "p10"], ["p20", "p20"], ["p30", "p30"], ["p255", "p255"]]; };
-  App.policy({
-    mount: "#pol", key: "nr", title: "Network Rules", ruleNoun: "Network Rule", newMenu: true,
-    seed: function () { return { enabled: true, rules: [
-      { id: "n1", name: "Web Conferencing", enabled: true, ruleType: "Internet", source: [], dest: [], app: ["App: Microsoft Teams", "App: Zoom"], prio: "p255", primary: "Cato", secondary: "None", routeNat: "None", routeVia: "Tokyo", natIp: "" },
-      { id: "n2", name: "Microsoft 365", enabled: true, ruleType: "Internet", source: [], dest: [], app: ["App: Microsoft 365"], prio: "p30", primary: "Cato", secondary: "None", routeNat: "None", routeVia: "Tokyo", natIp: "" },
-      { id: "n3", name: "WAN - Default", enabled: true, ruleType: "WAN", source: [], dest: [], app: [], prio: "p20", primary: "Cato", secondary: "Automatic", routeNat: "None", routeVia: "Tokyo", natIp: "" }
-    ] }; },
-    newRule: function () { return { name: "", enabled: true, ruleType: "Internet", source: [], dest: [], app: [], prio: "p255", primary: "Cato", secondary: "None", routeNat: "None", routeVia: "Tokyo", natIp: allocated()[0] || "" }; },
-    columns: [
-      { h: "Name", v: function (r) { return App.esc(r.name) + (r._new ? ' <span class="badge b-info">New</span>' : ""); } },
-      { h: "Rule Type", v: function (r) { return '<span class="badge ' + (r.ruleType === "WAN" ? "b-gray" : "b-info") + '">' + r.ruleType + "</span>"; } },
-      { h: "Source", v: function (r) { return App.chipsCell(r.source); } },
-      { h: "Destination", v: function (r) { return r.ruleType === "WAN" ? App.chipsCell(r.dest) : '<span class="muted">Internet</span>'; } },
-      { h: "App/Category", v: function (r) { return App.chipsCell(r.app); } },
-      { h: "Bandwidth Priority", v: function (r) { return '<span class="mono">' + App.esc(r.prio) + "</span>"; } },
-      { h: "Transport", v: function (r) { return App.esc(r.primary) + " / " + App.esc(r.secondary); } },
-      { h: "Route/NAT", v: function (r) { return r.ruleType !== "Internet" || r.routeNat === "None" ? '<span class="muted">—</span>' : r.routeNat === "NAT" ? "NAT: " + App.esc(r.natIp) : "Route Via: " + App.esc(r.routeVia); } }
-    ],
-    generalExtra: [{ key: "ruleType", label: "Rule Type", type: "select", options: ["Internet", "WAN"], rerender: true, help: "WAN＝社内（拠点・ユーザー・クラウド）間、Internet＝インターネット向け。" }],
-    sections: [
-      { title: "Source", fields: [{ key: "source", label: "Source", type: "picker", options: App.opt.sources }] },
-      { title: "Destination", showIf: function (m) { return m.ruleType === "WAN"; }, fields: [{ key: "dest", label: "Destination（WANルールのみ）", type: "picker", options: App.opt.destinations }] },
-      { title: "App/Category", fields: [{ key: "app", label: "App/Category", type: "picker", options: App.opt.apps }] },
-      { title: "Configuration", open: true, summary: function (m) { return m.prio + (m.ruleType === "Internet" && m.routeNat !== "None" ? " / " + m.routeNat : ""); }, fields: [
-        { key: "prio", label: "Bandwidth Priority", type: "select", options: prios, help: "数字が小さいほど優先。Web会議・電話は高い優先度（小さい数字）に。" },
-        { key: "primary", label: "Primary Transport", type: "select", options: ["Cato", "Internet (Off-Cloud)", "Automatic"] },
-        { key: "secondary", label: "Secondary Transport", type: "select", options: ["None", "Automatic", "Cato", "Internet (Off-Cloud)"] },
-        { key: "routeNat", label: "Route/NAT（Internet ルールのみ）", type: "select", options: ["None", "Route Via", "NAT"], rerender: true, showIf: function (m) { return m.ruleType === "Internet"; } },
-        { key: "routeVia", label: "Route Via - Locations", type: "select", options: App.opt.locations, showIf: function (m) { return m.ruleType === "Internet" && m.routeNat === "Route Via"; } },
-        { key: "natIp", label: "NAT - Allocated IPs", type: "select", options: function () { const a = allocated(); return a.length ? a : [["", "（割り当て済みIPがありません）"]]; }, showIf: function (m) { return m.ruleType === "Internet" && m.routeNat === "NAT"; },
-          help: "Network > IP Allocation で先に固定IPを割り当てておきます。" }
-      ] }
-    ],
-    validate: function (m) {
-      if (m.ruleType === "Internet" && m.routeNat === "NAT" && !m.natIp) return "NAT に使う Allocated IP がありません。先に Network > IP Allocation で割り当ててください。";
-      if (m.ruleType === "Internet" && m.routeNat !== "None" && !m.source.length && !m.app.length) App.toast("ベストプラクティス：Route Via / NAT のルールは Source か App/Category を具体的に指定しましょう。", "warn", 6000);
-      if (m.ruleType !== "WAN") m.dest = [];
-      return null;
+  const sites = App.sites();
+  const id = App.db.get("selectedSite", sites[0].id);
+  const site = sites.find(function (s) { return s.id === id; }) || sites[0];
+  let view = "snapshot";
+  const V = [
+    ["SITE MONITORING", [["snapshot", "Snapshot", "target"], ["analytics", "Network Analytics", "bars"], ["realtime", "Real-Time", "gauge", true], ["events", "Events", "list", false, "events.html"]]],
+    ["SITE CONFIGURATION", [["general", "General", "site"], ["socket", "Socket", "socket"], ["networks", "Networks", "route"], ["ha", "High Availability", "nodes", true]]]
+  ];
+  App.customSidebar = function () {
+    return '<a class="side-item" href="sites.html">' + App.icon("back") + "All Sites</a>" +
+      '<div class="side-site"><b>' + App.esc(site.name) + '</b><span class="dot ' + (site.status === "Connected" ? "ok" : site.status === "Disconnected" ? "ng" : "warn") + '"></span>' + App.esc(site.status) + "</div>" +
+      V.map(function (sec) {
+        return '<div class="side-sec"><h6>' + sec[0] + "</h6>" + sec[1].map(function (it) {
+          if (it[4]) return '<a class="side-item" href="' + it[4] + '">' + App.icon(it[2]) + it[1] + "</a>";
+          if (it[3]) return '<button type="button" class="side-item na" data-na="' + it[1] + '">' + App.icon(it[2]) + it[1] + "</button>";
+          return '<button type="button" class="side-item" data-view="' + it[0] + '">' + App.icon(it[2]) + it[1] + "</button>";
+        }).join("") + "</div>";
+      }).join("");
+  };
+
+  function header(title) {
+    return '<div class="site-head"><h1>' + App.esc(site.name) + ' <span class="muted">/ ' + title + "</span></h1>" +
+      (site.status === "Connected" ? '<span class="badge b-ok">Connected</span>' : site.status === "Disconnected" ? '<span class="badge b-ng">Disconnected</span>' : '<span class="badge b-warn">Pending</span>') + "</div>" +
+      (site.status === "Disconnected" ? '<div class="alert-bar">' + App.icon("alert") + '<div><b>この拠点は ' + App.fmt(site.disconnectedAt) + " から Cato Cloud に接続していません。</b><br>切り分けの順番：① 他の拠点も落ちていないか（Topology）② Link Status と Recent Connections ③ 現地の電源・ケーブル・回線事業者 ④ vSocket の場合はクラウド側（インスタンス停止・セキュリティグループ・ルートテーブル）</div></div>" : "") +
+      (site.status === "Pending" ? '<div class="alert-bar" style="background:var(--warn-soft);color:#8a5200;border-color:#f1d49a">' + App.icon("alert") + "<div><b>まだ Socket が接続されていません。</b>現地で Socket に回線とLANをつないで電源を入れると、自動で PoP に接続します（ゼロタッチ）。</div></div>" : "");
+  }
+
+  function linkRows() {
+    return [site.wan1, site.wan2].filter(Boolean).map(function (w) {
+      const up = site.status === "Connected";
+      const lr = w.role === "Last Resort";
+      return "<tr><td>" + App.esc(w.name) + "</td><td>" + App.esc(w.isp) + "</td><td>" + App.esc(w.role) + "</td>" +
+        "<td>" + (up ? (lr ? '<span class="badge b-gray">Standby</span>' : '<span class="badge b-ok">Up</span>') : '<span class="badge b-ng">Down</span>') + "</td>" +
+        "<td>" + (up ? "Yes" : site.conn.indexOf("vSocket") >= 0 ? "—" : "Yes") + '</td><td class="num">' + (up && !lr ? (site.pop === "Osaka" ? "6 ms" : "4 ms") : "—") + "</td>" +
+        '<td class="num">' + w.down + " / " + w.up + " Mbps</td><td>" + (up ? "Auto / Full" : "—") + "</td></tr>";
+    }).join("");
+  }
+
+  const render = {
+    snapshot: function () {
+      if (site.id === "s3" || site.status === "Disconnected") App.complete("topo_site");
+      const since = site.status === "Connected" ? Math.floor((Date.now() - site.connectedSince) / 864e5) + "d " + Math.floor(((Date.now() - site.connectedSince) % 864e5) / 3600e3) + "h" : "—";
+      const recent = site.status === "Disconnected"
+        ? [[site.disconnectedAt, "Disconnected", "Tunnel timeout（応答なし）"], [site.disconnectedAt - 3 * 864e5, "Connected", "Tokyo_DC4"], [site.disconnectedAt - 3.1 * 864e5, "Disconnected", "Maintenance (Socket upgrade)"]]
+        : [[site.connectedSince || Date.now(), "Connected", site.pop], [(site.connectedSince || Date.now()) - 60e3 * 4, "Disconnected", "Socket upgrade（メンテナンス時間帯）"], [(site.connectedSince || Date.now()) - 9 * 864e5, "Connected", site.pop]];
+      return header("Snapshot") +
+        '<div class="card"><div class="card-h"><h2>Device Overview</h2><span class="muted">' + (site.ha ? "HA構成（Primary / Secondary）" : "Single Socket") + "</span>" +
+        '<div class="btn-group" style="margin-left:auto"><button class="btn" id="webui" type="button">Socket WebUI</button></div></div>' +
+        '<dl class="kv" style="margin:0"><div><dt>Connection Type</dt><dd>' + App.esc(site.conn) + "</dd></div><div><dt>Connected</dt><dd>" + since + "</dd></div><div><dt>Connected PoP</dt><dd>" + App.esc(site.pop) + "</dd></div>" +
+        "<div><dt>Socket Version</dt><dd>" + (site.status === "Pending" ? "—" : "21.0.18xxx") + "</dd></div><div><dt>Last Update</dt><dd>" + (site.status === "Connected" ? "5 sec ago" : "—") + "</dd></div><div><dt>Native Range</dt><dd class=\"mono\">" + App.esc(site.native) + "</dd></div></dl></div>" +
+        '<div class="card"><div class="card-h"><h2>Link State（WAN）</h2></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Interface</th><th>ISP</th><th>Role</th><th>Link Status</th><th>Media Connected</th><th>RTT</th><th>Bandwidth (Down/Up)</th><th>Speed / Duplex</th></tr></thead><tbody>' + linkRows() + "</tbody></table></div></div>" +
+        '<div class="card"><div class="card-h"><h2>Recent Connections</h2><span class="muted">過去の接続履歴。頻繁に切れていないかを見る</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Time</th><th>Status</th><th>Detail</th></tr></thead><tbody>' +
+        recent.map(function (r) { return "<tr><td class=\"num\">" + App.fmt(r[0]) + "</td><td>" + (r[1] === "Connected" ? '<span class="badge b-ok">Connected</span>' : '<span class="badge b-ng">Disconnected</span>') + "</td><td>" + App.esc(r[2]) + "</td></tr>"; }).join("") +
+        "</tbody></table></div></div>";
     },
-    onPublish: function (pub) {
-      if (pub.rules.some(function (r) { return r.enabled && r.ruleType === "Internet" && r.routeNat === "NAT" && r.natIp; })) App.complete("nr_nat");
-      if (pub.rules.some(function (r) { return r.enabled && r.prio !== "p255" && r.app.some(function (a) { return /Teams|Zoom/.test(a); }); })) App.complete("nr_qos");
+    analytics: function () {
+      const rnd = App.rand(site.id.charCodeAt(1) * 77);
+      const N = 25, labels = [], full = [];
+      const now = new Date();
+      for (let i = 0; i < N; i++) { const h = (now.getHours() - (N - 1 - i) + 48) % 24; labels.push(i % 4 === 0 ? h + ":00" : ""); full.push(h + ":00 台"); }
+      const cap = site.wan1.down;
+      const down = [], up = [], loss = [], lastMile = [], lat = [], jit = [];
+      const cut = site.status === "Disconnected" ? N - 3 : N + 1;
+      for (let i = 0; i < N; i++) {
+        const h = (now.getHours() - (N - 1 - i) + 48) % 24;
+        const work = h >= 9 && h <= 18 ? 1 : 0.25;
+        const off = i >= cut;
+        down.push(off ? 0 : Math.round(cap * (0.18 + 0.55 * work) * (0.8 + rnd() * 0.4)));
+        up.push(off ? 0 : Math.round(cap * (0.06 + 0.2 * work) * (0.8 + rnd() * 0.4)));
+        loss.push(off ? 0 : +(rnd() * (h === 14 ? 1.6 : 0.25)).toFixed(2));
+        lastMile.push(off ? 0 : +(rnd() * (h === 14 ? 2.4 : 0.35)).toFixed(2));
+        lat.push(off ? 0 : +(4 + rnd() * 3 + (h === 14 ? 9 : 0)).toFixed(1));
+        jit.push(off ? 0 : +(0.6 + rnd() * 1.2 + (h === 14 ? 6 : 0)).toFixed(1));
+      }
+      const judge = function (kind, i) {
+        if (i >= cut) return "この時間は拠点が切断されていたため、データがありません。";
+        if (kind === "tp") { const u = down[i] / cap; return u > 0.85 ? "契約帯域の " + Math.round(u * 100) + "%：ほぼ上限。増速か大容量通信の優先度見直しを検討。" : "契約帯域の " + Math.round(u * 100) + "%：余裕あり。"; }
+        if (kind === "loss") return loss[i] >= 1 ? "ロスが高い（1%以上）。ラストマイルも高ければ回線事業者側の品質低下を疑う。" : "ロスは低く正常範囲。";
+        if (kind === "lat") return lat[i] >= 10 ? "遅延が普段より大きい。同時刻のロス・ジッタも確認。" : "遅延は普段どおり。";
+        return jit[i] >= 5 ? "ジッタが大きい：Web会議・電話が途切れやすい状態。QoS の見直し対象。" : "ジッタは小さく正常範囲。";
+      };
+      const card = function (t, series, unit, legend, note, kind) {
+        return '<div class="card chart-card" data-tip="' + App.esc(t + "：グラフの上にマウスを乗せると、その時刻の値と判定が表示されます。") + '"><h4>' + t + '</h4><div class="legend">' + legend.map(function (l) { return '<span><i style="background:' + l[1] + '"></i>' + l[0] + "</span>"; }).join("") + "</div>" +
+          '<div style="padding:4px 10px 6px">' + App.lineChart(series, { labels: labels, full: full, unit: unit, title: t, note: function (i) { return judge(kind, i); } }) + "</div>" + (note ? '<p class="muted" style="padding:0 14px 12px;font-size:12px">' + note + "</p>" : "") + "</div>";
+      };
+      return header("Network Analytics") +
+        '<div class="btn-group" style="margin-bottom:12px"><span class="muted">Time Range</span><div class="range"><button aria-pressed="false" data-na="1 Hour">1 Hour</button><button aria-pressed="true">24 Hours</button><button aria-pressed="false" data-na="7 Days">7 Days</button></div></div>' +
+        '<div class="charts">' +
+        card("Throughput（WAN1）", [{ name: "Down", data: down, color: "#1f8a5b", fill: true }, { name: "Up", data: up, color: "#6d86a2" }], "Mbps", [["Downstream", "#1f8a5b"], ["Upstream", "#6d86a2"]], "契約帯域（" + cap + " Mbps）に張り付いている時間が長ければ増速を検討します。", "tp") +
+        card("Packet Loss", [{ name: "トンネル内", data: loss, color: "#d6333b" }, { name: "ラストマイル", data: lastMile, color: "#e58a00" }], "%", [["Inside tunnel", "#d6333b"], ["Last Mile（ISP側）", "#e58a00"]], "14時台にロスが増えています。Last Mile も高いため、回線事業者側の品質低下が疑われます。", "loss") +
+        card("Round-Trip Latency", [{ name: "遅延", data: lat, color: "#1a73e8" }], "ms", [["Site ⇔ PoP", "#1a73e8"]], "", "lat") +
+        card("Jitter", [{ name: "ジッタ", data: jit, color: "#7a5bc0" }], "ms", [["Jitter", "#7a5bc0"]], "ジッタが大きいと Web会議・電話の音声が途切れます。QoS（Bandwidth Priority）の見直し対象です。", "jit") +
+        "</div>";
+    },
+    general: function () {
+      return header("General") + '<div class="card"><div class="card-b" style="max-width:640px">' +
+        '<div class="row2"><div class="field"><label>Site Name</label><input class="input" value="' + App.esc(site.name) + '" id="gName"></div>' +
+        '<div class="field"><label>Site Type</label><input class="input" value="' + App.esc(site.type) + '" readonly></div></div>' +
+        '<div class="row2"><div class="field"><label>Connection Type</label><input class="input" value="' + App.esc(site.conn) + '" readonly><span class="help">作成後は変更できません（変更は作り直し）。</span></div>' +
+        '<div class="field"><label>License</label><input class="input" value="' + App.esc(site.license) + '" readonly></div></div>' +
+        '<div class="row2"><div class="field"><label>Country / City</label><input class="input" value="' + App.esc(site.country + " / " + site.city) + '" readonly></div>' +
+        '<div class="field"><label>Time Zone</label><input class="input" value="' + App.esc(site.tz) + '" readonly><span class="help">Socket のアップグレード時間帯（メンテナンス時間帯）に影響します。</span></div></div>' +
+        '<button class="btn btn-primary" id="gSave" type="button">Save</button></div></div>';
+    },
+    socket: function () {
+      return header("Socket") + '<div class="card"><div class="card-h"><h2>Sockets</h2></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Role</th><th>Serial</th><th>Model</th><th>Status</th><th>Version</th><th></th></tr></thead><tbody>' +
+        (site.ha ? [["Primary", "CS-X17-0A1B2C"], ["Secondary", "CS-X17-0A1B2D"]] : [["Primary", site.conn.indexOf("vSocket") >= 0 ? "vSocket-aws-7f3e" : "CS-" + site.id.toUpperCase() + "-9F21"]]).map(function (r, i) {
+          return "<tr><td>" + r[0] + '</td><td class="mono">' + r[1] + "</td><td>" + App.esc(site.conn) + "</td><td>" + (site.status === "Connected" ? '<span class="badge b-ok">' + (i ? "Ready" : "Active") + "</span>" : '<span class="badge b-ng">Offline</span>') + "</td><td>21.0.18xxx</td>" +
+            '<td><button class="btn" type="button" data-actions>Actions ▾</button></td></tr>';
+        }).join("") + "</tbody></table></div></div>" +
+        '<div class="tip" style="margin-top:14px"><span><b>Socket WebUI：</b>Actions ▸ Socket WebUI で、Socket のローカル管理画面に自動ログインできます（対象サイトの編集権限が必要、10分操作がないとログアウト）。CMA につながらない障害時は、現地LANから https://' + App.esc(site.localIp) + ' に直接アクセスします。</span></div>';
+    },
+    networks: function () {
+      return header("Networks") + '<div class="card"><div class="card-h"><h2>LAN Interfaces / Ranges</h2></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Type</th><th>Subnet</th><th>Local IP</th><th>DHCP</th></tr></thead><tbody>' +
+        '<tr><td>LAN1</td><td>Native</td><td class="mono">' + App.esc(site.native) + '</td><td class="mono">' + App.esc(site.localIp) + "</td><td>" + (site.type === "Branch" ? "DHCP Server" : "DHCP Relay") + "</td></tr>" +
+        (site.id === "s1" ? '<tr><td>LAN1</td><td>Routed</td><td class="mono">10.11.0.0/22</td><td class="mono">（L3 Switch 10.10.0.254 経由）</td><td>—</td></tr>' : "") +
+        "</tbody></table></div></div>" +
+        '<div class="tip" style="margin-top:14px"><span>Native Range は他の拠点・クラウド・リモートユーザーのアドレスと重複させないこと。L3スイッチの先のセグメントは <b>Routed</b> として登録しないと通信できません。</span></div>';
     }
+  };
+
+  function show(v) {
+    view = v;
+    document.getElementById("view").innerHTML = render[v]();
+    document.querySelectorAll("[data-view]").forEach(function (b) { b.classList.toggle("active", b.dataset.view === v); });
+    const w = document.getElementById("webui");
+    if (w) w.onclick = webui;
+    document.querySelectorAll("[data-actions]").forEach(function (b) {
+      b.onclick = function () {
+        App.pop(b, [{ label: "Socket WebUI", run: webui }, { label: "Reboot", run: function () { App.toast("研修版のため再起動は行いません。実機では通信が数分途切れます。", "warn"); } }, { label: "Replace Socket (RMA)", run: function () { App.toast("RMA交換：交換品のシリアルをこのサイトに紐づけ直すと、元の設定で動きます。", "ok", 6000); } }]);
+      };
+    });
+    const gs = document.getElementById("gSave");
+    if (gs) gs.onclick = function () {
+      const nm = document.getElementById("gName").value.trim();
+      if (nm && nm !== site.name) {
+        const all = App.sites(); const t = all.find(function (s) { return s.id === site.id; });
+        App.audit("Sites", "Update", nm, "Site Name: " + site.name + " → " + nm);
+        t.name = nm; site.name = nm; App.db.set("sites", all);
+      }
+      App.toast("サイト設定を保存しました。", "ok"); show("general");
+    };
+  }
+  function webui() { App.toast("研修版では Socket WebUI は開きません。実機では新しいタブが開き、自動でログインします。", "warn", 6000); }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("crumbSite").textContent = site.name;
+    document.querySelectorAll("[data-view]").forEach(function (b) { b.addEventListener("click", function () { show(b.dataset.view); document.body.classList.remove("side-open"); }); });
+    show(view);
   });
 })();
 </script>

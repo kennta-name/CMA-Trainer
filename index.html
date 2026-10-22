@@ -3,211 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Events | CMA Trainer</title>
+<title>CMA Trainer</title>
 <meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body data-tab="monitoring" data-page="events" data-crumb="Events">
+<body data-page="index">
 <style>
-  .ev-top { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
-  .ev-top .search { position: relative; flex: 1; min-width: 220px; }
-  .ev-top .search .icon { position: absolute; left: 8px; top: 8px; color: var(--muted); }
-  .ev-top .search input { padding-left: 30px; }
-  .types { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--line); align-items: center; }
-  .types button { border: 1px solid var(--line-strong); background: #fff; border-radius: 99px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
-  .types button b { font-weight: 500; margin-left: 4px; font-variant-numeric: tabular-nums; }
-  .types button[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
-  .fbar { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 16px; border-bottom: 1px solid var(--line); align-items: center; min-height: 40px; }
-  .fchip { display: inline-flex; gap: 6px; align-items: center; border-radius: 3px; padding: 1px 8px; font-size: 12px; }
-  .fchip.inc { background: #e3f4ea; color: #1d6e43; } .fchip.exc { background: var(--ng-soft); color: #9b1c23; }
-  .fchip button { border: 0; background: none; cursor: pointer; color: inherit; font-size: 14px; padding: 0; }
-  .ev-body { display: grid; grid-template-columns: 250px minmax(0, 1fr); }
-  .fields { border-right: 1px solid var(--line); padding: 8px 0; }
-  .fields h4 { font-size: 11px; letter-spacing: .06em; color: var(--muted); padding: 4px 14px 6px; font-weight: 500; }
-  .fld > button { width: 100%; display: flex; gap: 6px; align-items: center; border: 0; background: none; padding: 7px 14px; cursor: pointer; font-size: 12.5px; text-align: left; }
-  .fld > button:hover { background: #f6f8fa; }
-  .fld > button .icon { width: 12px; height: 12px; color: var(--muted); transition: transform .15s; }
-  .fld.open > button .icon { transform: rotate(90deg); }
-  .fvals { padding: 0 8px 8px 30px; display: grid; gap: 2px; }
-  .fv { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 4px; align-items: center; font-size: 12px; }
-  .fv span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fv em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .fv button { border: 1px solid var(--line); background: #fff; width: 20px; height: 20px; border-radius: 3px; cursor: pointer; font-size: 12px; line-height: 1; padding: 0; }
-  .fv button:hover { border-color: var(--brand); color: var(--brand); }
-  .hist { padding: 10px 16px 0; }
-  .hist svg { width: 100%; height: 70px; display: block; }
-  .detail td { background: #fafbfc; }
-  .detail dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 6px 18px; margin: 4px 0; }
-  .detail dt { font-size: 11px; color: var(--muted); }
-  .detail dd { margin: 0; font-size: 12.5px; word-break: break-all; }
-  .more { text-align: center; padding: 12px; }
-  @media (max-width: 900px) { .ev-body { grid-template-columns: 1fr; } .fields { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .start { min-height: 100%; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); background: var(--surface); }
+  .start-l { background: var(--brand); color: #fff; padding-block: 48px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: 40px; display: flex; flex-direction: column; gap: 22px; position: relative; overflow: hidden; }
+  .start-l .brand b { font-size: 26px; letter-spacing: .08em; display: block; }
+  .start-l .brand small { letter-spacing: .16em; font-size: 11px; opacity: .85; }
+  .start-l h1 { font-size: clamp(24px, 3.2vw, 34px); font-weight: 500; line-height: 1.35; text-wrap: balance; }
+  .start-l p { opacity: .92; max-width: 34em; line-height: 1.8; }
+  .ring-deco { position: absolute; right: -90px; bottom: -90px; width: 300px; height: 300px; border-radius: 50%; border: 34px solid rgba(255,255,255,.12); }
+  .flow { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; max-width: 34em; position: relative; }
+  .flow li { display: flex; gap: 12px; align-items: flex-start; background: rgba(255,255,255,.1); border-radius: 4px; padding: 10px 12px; }
+  .flow .n { width: 24px; height: 24px; border-radius: 50%; background: #fff; color: var(--brand); display: grid; place-items: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+  .flow b { display: block; font-weight: 500; }
+  .flow span { font-size: 12.5px; opacity: .9; }
+  .start-r { padding-block: 56px; padding-left: 40px; padding-right: max(32px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; justify-content: center; max-width: 520px; }
+  .start-r h2 { font-size: 20px; margin-bottom: 4px; }
+  .start-r .sub { color: var(--muted); margin-bottom: 22px; }
+  .guide-link { height: 40px; justify-content: center; width: 100%; margin-top: 8px; font-size: 14px; }
+  .start-r .btn-primary { height: 40px; justify-content: center; font-size: 14px; width: 100%; margin-top: 6px; }
+  .notice { margin-top: 22px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; line-height: 1.7; }
+  .map { margin-top: 18px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px 14px; font-size: 12.5px; }
+  .map a { display: flex; gap: 6px; align-items: baseline; }
+  .map small { color: var(--muted); font-family: var(--f-mono); font-size: 10.5px; }
+  @media (max-width: 860px) {
+    .start { grid-template-columns: 1fr; }
+    .start-l { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px; }
+    .start-r { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 90px; max-width: none; }
+  }
 </style>
 
-<main class="main" id="main">
-  <div class="page-title"><h1>Events</h1><span class="muted">通信・セキュリティ・接続のログ</span></div>
-  <div class="tip"><span><b>調べ方：</b>①期間を問題の時刻前後に絞る → ②左の項目（Action、User、Destination など）を開いて <b>＋（Include）／−（Exclude）</b> → ③行を開いて「どのルールに当たったか」を確認。イベントの表示には約5分、まれに30分かかります。</span></div>
-  <div class="card">
-    <div class="ev-top">
-      <select class="select" id="range" style="width:auto" aria-label="期間">
-        <option value="1">Last 1 Hour</option><option value="24">Last 24 Hours</option><option value="48" selected>Last 2 Days</option><option value="168">Last 7 Days</option><option value="744">Last 31 Days</option>
-      </select>
-      <select class="select" id="preset" style="width:auto" aria-label="プリセット">
-        <option value="">Select Presets</option><option value="blocked">Security - Blocked</option><option value="conn">Connectivity issues</option><option value="routing">Routing (BGP)</option><option value="system">Directory Services sync</option>
-      </select>
-      <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search（例：suzuki、partner-portal、RDP）" aria-label="イベントを検索"></div>
-      <button class="btn" id="export" type="button"><svg class="icon" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Export Events</button>
+<div class="start">
+  <section class="start-l">
+    <div class="ring-deco" aria-hidden="true"></div>
+    <div class="brand"><b>CMA TRAINER</b><small>CATO 管理画面 操作トレーニング（非公式）</small></div>
+    <h1>実機に触る前に、<br>管理画面の操作を体で覚える。</h1>
+    <p>「Cato Cloud 管理画面（CMA）操作要領」の手順を、本番に影響しない練習用の画面で試せます。ルールを追加して Save し、Publish するまでの流れを、何度でもやり直せます。</p>
+    <ol class="flow">
+      <li><span class="n">1</span><div><b>右のフォームで研修を開始</b><span>名前・メールアドレスは何を入れても進めます（保存はこのブラウザ内のみ）。</span></div></li>
+      <li><span class="n">2</span><div><b>右下の「研修ミッション」を順番にこなす</b><span>各ミッションに、PDFに対応するメニューの場所が書いてあります。</span></div></li>
+      <li><span class="n">3</span><div><b>迷ったらボタンにマウスを乗せる・操作要領を開く</b><span>ボタンの説明が表示されます。右上の「操作要領」には図解の手順書があります。</span></div></li>
+    </ol>
+  </section>
+
+  <section class="start-r">
+    <h2>研修を開始</h2>
+    <p class="sub">練習用の管理者として画面に入ります。</p>
+    <form id="startForm" novalidate>
+      <div class="field"><label for="tName">研修者名</label><input class="input" id="tName" placeholder="例：研修 太郎" autocomplete="off"></div>
+      <div class="field"><label for="tMail">メールアドレス（ログインIDの代わり）</label><input class="input" id="tMail" placeholder="例：trainee@example.com" autocomplete="off"></div>
+      <button class="btn btn-primary" type="submit">研修を開始</button>
+      <a class="btn guide-link" href="guide.html" data-tip="図解の操作要領を開きます。「まず必須でやること」から読むのがおすすめです。">操作要領（図解）を見る</a>
+    </form>
+    <p class="notice">このサイトは、Catoクラウドの管理画面を学ぶための<b>非公式の学習用シミュレーター</b>です。実際の Cato Management Application ではなく、入力した内容はどこにも送信されません。本物の管理画面のID・パスワードは入力しないでください。</p>
+    <div class="map" aria-label="画面一覧">
+      <a href="topology.html">Topology <small>Monitoring</small></a>
+      <a href="events.html">Events <small>Monitoring</small></a>
+      <a href="sites.html">Sites <small>Network</small></a>
+      <a href="network-rules.html">Network Rules <small>Network</small></a>
+      <a href="internet-firewall.html">Internet Firewall <small>Security</small></a>
+      <a href="wan-firewall.html">WAN Firewall <small>Security</small></a>
+      <a href="tls-inspection.html">TLS Inspection <small>Security</small></a>
+      <a href="users.html">Users <small>Access</small></a>
+      <a href="client-connectivity.html">Client Connectivity <small>Access</small></a>
+      <a href="administrators.html">Administrators <small>Administration</small></a>
     </div>
-    <div class="types" id="types" aria-label="Event Type クイックフィルター"></div>
-    <div class="fbar" id="fbar"></div>
-    <div class="ev-body">
-      <aside class="fields" id="fields" aria-label="フィールド"></aside>
-      <section style="min-width:0">
-        <div class="hist" id="hist"></div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:24px"></th><th>Time</th><th>Event Type</th><th>Sub-Type</th><th>Action</th><th>Source</th><th>Destination / Detail</th><th>Rule</th></tr></thead><tbody id="rows"></tbody></table></div>
-        <div class="more" id="more"></div>
-      </section>
-    </div>
-  </div>
-</main>
+  </section>
+</div>
 
 <script src="assets/app.js"></script>
 <script>
-(function () {
-  /* ---------- 研修用イベントの生成（毎回同じ内容） ---------- */
-  const r = App.rand(20261022);
-  const H = 3600e3, now = Date.now();
-  const pick = function (a) { return a[Math.floor(r() * a.length)]; };
-  const users = ["suzuki@example.co.jp", "tanaka@example.co.jp", "yamada@example.co.jp", "sato@example.co.jp", "takahashi@example.co.jp", "vendor01@partner.example"];
-  const sites = ["JP-TKY-HQ", "JP-OSA-BR01"];
-  const EV = [];
-  function add(e) { e.id = EV.length; e.pop = e.pop || pick(["Tokyo_DC4", "Tokyo_DC2", "Osaka"]); EV.push(e); }
-  for (let i = 0; i < 260; i++) {
-    const t = now - Math.pow(r(), 1.4) * 168 * H - 6 * 60e3;
-    const k = r();
-    const u = pick(users), s = r() < 0.6 ? "JP-TKY-HQ" : "JP-OSA-BR01";
-    if (k < 0.34) {
-      const ok = r() < 0.7;
-      add({ t: t, type: "Security", sub: "Internet Firewall", action: ok ? "Allow" : "Block", site: s, user: u, srcIp: "10." + (s === "JP-TKY-HQ" ? 10 : 20) + ".0." + (20 + Math.floor(r() * 200)),
-        dest: ok ? pick(["outlook.office.com", "teams.microsoft.com", "app.box.com", "salesforce.com", "www.youtube.com"]) : pick(["casino-example.test", "free-vpn-proxy.test", "unknown-cdn-0x9.test"]),
-        app: ok ? pick(["Microsoft 365", "Microsoft Teams", "Box", "Salesforce", "YouTube"]) : pick(["Gambling", "Anonymizers", "Uncategorized"]), rule: ok ? "Default (Any Any Allow)" : pick(["Block Risky Categories", "Block Uncategorized"]) });
-    } else if (k < 0.44) {
-      add({ t: t, type: "Security", sub: "IPS", action: r() < 0.8 ? "Block" : "Monitor", site: s, user: u, srcIp: "10.10.0." + Math.floor(r() * 250), dest: pick(["198.51.100.77", "203.0.113.200"]), app: "—", rule: "IPS", detail: pick(["Suspicious DNS tunneling", "Log4j RCE attempt (CVE-2021-44228)", "Known C&C communication"]) });
-    } else if (k < 0.5) {
-      add({ t: t, type: "Security", sub: "Anti Malware", action: "Block", site: s, user: u, srcIp: "10.20.0." + Math.floor(r() * 250), dest: pick(["files-share.test", "invoice-download.test"]), app: "HTTP(S)", rule: "Anti Malware", detail: pick(["invoice_2026.zip (Trojan.Generic)", "setup.exe (PUA)"]) });
-    } else if (k < 0.58) {
-      add({ t: t, type: "Security", sub: "WAN Firewall", action: r() < 0.5 ? "Block" : "Allow", site: "SDP", user: u, srcIp: "10.250.0." + Math.floor(r() * 120), dest: pick(["FileServer (10.10.0.20)", "10.10.0.35:3389", "ERP (172.16.1.10)"]), app: pick(["SMB", "RDP", "HTTPS"]), rule: pick(["Users to FileServer (SMB)", "Block RDP from SDP Users", "Default (Any Any Block)"]) });
-    } else if (k < 0.72) {
-      add({ t: t, type: "Connectivity", sub: pick(["Client Connected", "Client Disconnected"]), action: "—", site: "SDP", user: u, srcIp: "—", dest: "—", app: "—", rule: "—", detail: pick(["Windows 11 / Cato Client 5.x", "macOS 15 / Cato Client 5.x", "iOS 18"]) });
-    } else if (k < 0.8) {
-      add({ t: t, type: "Connectivity", sub: "Link Quality", action: "—", site: "JP-OSA-BR01", user: "—", srcIp: "—", dest: "WAN1 (NTT West)", app: "—", rule: "—", detail: "Packet loss " + (1 + r() * 3).toFixed(1) + "% / Jitter " + (6 + r() * 10).toFixed(0) + " ms" });
-    } else if (k < 0.86) {
-      add({ t: t, type: "Posture", sub: "Device Check Failed", action: "Allow Internet only", site: "SDP", user: pick(["vendor01@partner.example", "sato@example.co.jp"]), srcIp: "—", dest: "—", app: "—", rule: "Client Connectivity Policy", detail: pick(["Antivirus not running", "OS not up to date"]) });
-    } else if (k < 0.92) {
-      add({ t: t, type: "Routing", sub: pick(["BGP Session Up", "BGP Route Update"]), action: "—", site: "JP-TKY-HQ", user: "—", srcIp: "10.10.0.254", dest: "AS 65010", app: "—", rule: "—", detail: "Peer 10.10.0.254 (Core L3 SW)" });
-    } else if (k < 0.97) {
-      add({ t: t, type: "System", sub: "Directory Services", action: "—", site: "—", user: "—", srcIp: "—", dest: "Microsoft Entra ID (SCIM)", app: "—", rule: "—", detail: "SCIM sync completed (6 users)" });
-    } else {
-      add({ t: t, type: "Sockets Management", sub: "Socket Upgrade", action: "—", site: pick(sites), user: "—", srcIp: "—", dest: "—", app: "—", rule: "—", detail: "Upgraded to 21.0.18xxx in maintenance window" });
-    }
-  }
-  // シナリオ：鈴木さんが取引先ポータルを開けない（レシピ1）
-  [0.4, 1.1, 1.3, 2.2, 5.5].forEach(function (h) {
-    add({ t: now - h * H, type: "Security", sub: "Internet Firewall", action: "Block", site: "JP-TKY-HQ", user: "suzuki@example.co.jp", srcIp: "10.10.0.48", dest: "partner-portal.example.net", app: "Uncategorized", rule: "Block Uncategorized", pop: "Tokyo_DC4" });
-  });
-  // シナリオ：AWS の vSocket が切断
-  add({ t: now - 2.6 * H, type: "Connectivity", sub: "Site Disconnected", action: "—", site: "AWS-TKY-VPC", user: "—", srcIp: "—", dest: "—", app: "—", rule: "—", detail: "Tunnel timeout (no keepalive from vSocket)" });
-  add({ t: now - 2.62 * H, type: "Routing", sub: "BGP Session Down", action: "—", site: "JP-TKY-HQ", user: "—", srcIp: "—", dest: "AS 65010", app: "—", rule: "—", detail: "Route 172.16.0.0/16 withdrawn (AWS-TKY-VPC)" });
-  EV.sort(function (a, b) { return b.t - a.t; });
-
-  const FIELDS = [["type", "Event Type"], ["sub", "Sub-Type"], ["action", "Action"], ["user", "User"], ["site", "Site"], ["dest", "Destination"], ["rule", "Rule"], ["app", "App/Category"], ["pop", "PoP"]];
-  const TYPES = ["Security", "Connectivity", "Routing", "Posture", "System", "Sockets Management"];
-  const st = { hidden: {}, filters: [], q: "", range: 48, open: { action: true }, shown: 50, expanded: {} };
-
-  function base() {
-    const lim = now - st.range * H;
-    const q = st.q.toLowerCase();
-    return EV.filter(function (e) {
-      if (e.t < lim) return false;
-      if (q && JSON.stringify(e).toLowerCase().indexOf(q) < 0) return false;
-      return st.filters.every(function (f) { return f.mode === "+" ? e[f.field] === f.value : e[f.field] !== f.value; });
+  (function () {
+    const me = App.trainee();
+    if (me && me.name) { document.getElementById("tName").value = me.name === "研修 太郎" ? "" : me.name; }
+    document.getElementById("startForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const name = document.getElementById("tName").value.trim() || "研修 太郎";
+      const email = document.getElementById("tMail").value.trim() || "trainee@example.com";
+      App.db.set("trainee", { name: name, email: email });
+      App.complete("start");
+      setTimeout(function () { location.href = "topology.html"; }, 350);
     });
-  }
-  function draw() {
-    const b = base();
-    const list = b.filter(function (e) { return !st.hidden[e.type]; });
-    // Event Type
-    document.getElementById("types").innerHTML = '<span class="muted" style="font-size:12px;margin-right:4px">Event Type</span>' + TYPES.map(function (t) {
-      const n = b.filter(function (e) { return e.type === t; }).length;
-      return '<button type="button" data-type="' + t + '" aria-pressed="' + !st.hidden[t] + '" title="クリックで表示/非表示">' + t + "<b>" + n + "</b></button>";
-    }).join("");
-    // filter bar
-    document.getElementById("fbar").innerHTML = (st.filters.length ? st.filters.map(function (f, i) {
-      return '<span class="fchip ' + (f.mode === "+" ? "inc" : "exc") + '">' + (f.mode === "+" ? "" : "NOT ") + App.esc(FIELDS.find(function (x) { return x[0] === f.field; })[1]) + " = " + App.esc(f.value) + '<button type="button" data-rmf="' + i + '" aria-label="フィルターを外す">×</button></span>';
-    }).join("") + '<button class="btn btn-text" type="button" id="clearF">Clear all</button>' : '<span class="muted" style="font-size:12px">フィルターなし。左の項目の ＋ / − で絞り込みます。</span>') +
-      '<span class="muted" style="margin-left:auto;font-size:12px">' + list.length + " events</span>";
-    // fields
-    document.getElementById("fields").innerHTML = "<h4>FIELDS</h4>" + FIELDS.map(function (f) {
-      const counts = {};
-      list.forEach(function (e) { const v = e[f[0]]; if (v && v !== "—") counts[v] = (counts[v] || 0) + 1; });
-      const top = Object.entries(counts).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 8);
-      return '<div class="fld ' + (st.open[f[0]] ? "open" : "") + '"><button type="button" data-fld="' + f[0] + '">' + App.icon("chev") + f[1] + '<span class="muted" style="margin-left:auto">' + Object.keys(counts).length + "</span></button>" +
-        (st.open[f[0]] ? '<div class="fvals">' + (top.length ? top.map(function (kv) {
-          return '<div class="fv"><span title="' + App.esc(kv[0]) + '">' + App.esc(kv[0]) + "</span><em>" + kv[1] + '</em><button type="button" data-inc="' + f[0] + '" data-v="' + App.esc(kv[0]) + '" title="Include" aria-label="' + App.esc(kv[0]) + 'を含める">+</button><button type="button" data-exc="' + f[0] + '" data-v="' + App.esc(kv[0]) + '" title="Exclude" aria-label="' + App.esc(kv[0]) + 'を除外">−</button></div>';
-        }).join("") : '<span class="muted" style="font-size:12px">値なし</span>') + "</div>" : "") + "</div>";
-    }).join("");
-    // histogram
-    const bins = Math.min(48, st.range), size = st.range * H / bins, arr = new Array(bins).fill(0), blk = new Array(bins).fill(0);
-    list.forEach(function (e) { const i = Math.min(bins - 1, Math.floor((now - e.t) / size)); arr[bins - 1 - i]++; if (e.action === "Block") blk[bins - 1 - i]++; });
-    const mx = Math.max(1, Math.max.apply(null, arr)), w = 1000 / bins;
-    document.getElementById("hist").innerHTML = '<svg viewBox="0 0 1000 70" preserveAspectRatio="none" role="img" aria-label="時間ごとのイベント数">' + arr.map(function (v, i) {
-      const h = (v / mx) * 60, hb = (blk[i] / mx) * 60;
-      return '<rect x="' + (i * w + 1) + '" y="' + (64 - h) + '" width="' + (w - 2) + '" height="' + h + '" fill="#9fc9b2"/><rect x="' + (i * w + 1) + '" y="' + (64 - hb) + '" width="' + (w - 2) + '" height="' + hb + '" fill="#e0767b"/>';
-    }).join("") + '<line x1="0" x2="1000" y1="64.5" y2="64.5" stroke="#e1e4e8"/></svg><div class="muted" style="font-size:11px;display:flex;gap:14px;padding:2px 0 8px"><span><span class="dot" style="background:#9fc9b2"></span>Events</span><span><span class="dot" style="background:#e0767b"></span>Block</span></div>';
-    // table
-    const shown = list.slice(0, st.shown);
-    document.getElementById("rows").innerHTML = shown.length ? shown.map(function (e) {
-      const ex = st.expanded[e.id];
-      return '<tr class="clickable" data-id="' + e.id + '"><td>' + (ex ? "▾" : "▸") + '</td><td class="num" style="white-space:nowrap">' + App.fmt(e.t) + "</td><td>" + e.type + "</td><td>" + App.esc(e.sub) + "</td><td>" + (e.action === "—" ? '<span class="muted">—</span>' : App.actionBadge(e.action === "Monitor" ? "Prompt" : e.action).replace(">Prompt<", ">" + e.action + "<")) + "</td><td>" + App.esc(e.user !== "—" ? e.user : e.site) + "</td><td>" + App.esc(e.dest !== "—" ? e.dest : (e.detail || "—")) + "</td><td>" + App.esc(e.rule) + "</td></tr>" +
-        (ex ? '<tr class="detail"><td></td><td colspan="7"><dl>' + [["Time", App.fmt(e.t)], ["Event Type", e.type], ["Sub-Type", e.sub], ["Action", e.action], ["User", e.user], ["Site", e.site], ["Source IP", e.srcIp], ["Destination", e.dest], ["App/Category", e.app], ["Rule", e.rule], ["PoP", e.pop], ["Detail", e.detail || "—"]].map(function (kv) { return "<div><dt>" + kv[0] + "</dt><dd>" + App.esc(kv[1]) + "</dd></div>"; }).join("") + "</dl></td></tr>" : "");
-    }).join("") : '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">条件に合うイベントがありません。期間を広げるか、フィルターを外してください。</td></tr>';
-    document.getElementById("more").innerHTML = list.length > st.shown ? '<button class="btn" type="button" id="loadMore">さらに表示（残り ' + (list.length - st.shown) + " 件）</button>" : "";
-  }
-  function addFilter(field, value, mode) {
-    if (!st.filters.some(function (f) { return f.field === field && f.value === value && f.mode === mode; })) st.filters.push({ field: field, value: value, mode: mode });
-    if (field === "action" && value === "Block" && mode === "+") App.complete("events_block");
-    st.shown = 50; draw();
-  }
-  document.addEventListener("DOMContentLoaded", function () {
-    draw();
-    const card = document.querySelector(".card");
-    card.addEventListener("click", function (e) {
-      const t = e.target.closest("[data-type]"); if (t) { st.hidden[t.dataset.type] = !st.hidden[t.dataset.type]; draw(); return; }
-      const fl = e.target.closest("[data-fld]"); if (fl) { st.open[fl.dataset.fld] = !st.open[fl.dataset.fld]; draw(); return; }
-      const inc = e.target.closest("[data-inc]"); if (inc) { addFilter(inc.dataset.inc, inc.dataset.v, "+"); return; }
-      const exc = e.target.closest("[data-exc]"); if (exc) { addFilter(exc.dataset.exc, exc.dataset.v, "-"); return; }
-      const rm = e.target.closest("[data-rmf]"); if (rm) { st.filters.splice(+rm.dataset.rmf, 1); draw(); return; }
-      if (e.target.closest("#clearF")) { st.filters = []; draw(); return; }
-      if (e.target.closest("#loadMore")) { st.shown += 50; draw(); return; }
-      const row = e.target.closest("tr[data-id]"); if (row) { st.expanded[row.dataset.id] = !st.expanded[row.dataset.id]; draw(); }
-    });
-    document.getElementById("range").onchange = function (e) { st.range = +e.target.value; st.shown = 50; draw(); };
-    let tm; document.getElementById("q").oninput = function (e) { clearTimeout(tm); tm = setTimeout(function () { st.q = e.target.value.trim(); st.shown = 50; draw(); }, 200); };
-    document.getElementById("preset").onchange = function (e) {
-      const v = e.target.value; st.filters = []; st.hidden = {};
-      if (v === "blocked") { addFilter("type", "Security", "+"); addFilter("action", "Block", "+"); }
-      if (v === "conn") { addFilter("type", "Connectivity", "+"); addFilter("sub", "Client Connected", "-"); addFilter("sub", "Client Disconnected", "-"); }
-      if (v === "routing") addFilter("type", "Routing", "+");
-      if (v === "system") addFilter("type", "System", "+");
-      if (!v) draw();
-    };
-    document.getElementById("export").onclick = function () {
-      App.toast("研修版のため CSV は出力しません。実機では現在の条件で最大 25 万件を出力できます（Editor 権限が必要）。events_count 列は1分以内の同種イベントをまとめた件数です。", "warn", 7000);
-    };
-  });
-})();
+  })();
 </script>
 
 </body>

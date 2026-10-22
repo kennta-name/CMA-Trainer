@@ -3,173 +3,93 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Topology | CMA Trainer</title>
+<title>Users | CMA Trainer</title>
 <meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body data-tab="monitoring" data-page="topology" data-crumb="Topology">
-<style>
-  .topo-head { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 46px; }
-  .topo-head > * { display: flex; align-items: center; }
-  .topo-title { padding: 0 22px; font-size: 15px; font-weight: 500; min-width: 120px; }
-  .ico-blk { background: var(--slate); color: #fff; width: 32px; justify-content: center; }
-  .ico-blk .icon { width: 18px; height: 18px; }
-  .stat { gap: 6px; padding: 0 14px; font-size: 12px; color: var(--muted); }
-  .stat b { font-size: 17px; font-weight: 400; color: var(--text); font-variant-numeric: tabular-nums; }
-  .stat.ok b { color: var(--ok); } .stat.ng b { color: var(--ng); }
-  .stat-sep { width: 10px; position: relative; }
-  .stat-sep::after { content: ""; position: absolute; top: 12px; bottom: 12px; left: 2px; width: 8px; border-top: 1px solid var(--line-strong); border-right: 1px solid var(--line-strong); transform: skewX(25deg); border-top: 0; }
-  .topo-search { flex: 1; padding: 0 14px; min-width: 200px; position: relative; }
-  .topo-search .icon { position: absolute; left: 24px; color: var(--muted); }
-  .topo-search input { padding-left: 32px; max-width: 460px; }
-  .topo-refresh { border: 0; border-left: 1px solid var(--line); background: none; width: 46px; justify-content: center; cursor: pointer; }
-  .canvas { position: relative; height: min(68vh, 640px); min-height: 420px; overflow: hidden; background: #fff; }
-  .zoom { position: absolute; left: 18px; top: 18px; display: grid; gap: 14px; z-index: 2; }
-  .zoom button { border: 0; background: none; cursor: pointer; color: #555; padding: 2px; }
-  .zoom .icon { width: 18px; height: 18px; }
-  #topo { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
-  .node { cursor: pointer; }
-  .node:hover .nb, .node:focus .nb { stroke: var(--link); stroke-width: 3; }
-  .node:focus { outline: none; }
-  .node.dim { opacity: .25; }
-  .lbl { font-size: 13px; fill: var(--text); }
-  .lbl-sub { font-size: 11px; fill: var(--muted); }
-  .legend-row { display: flex; gap: 18px; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); flex-wrap: wrap; }
-  .hover-card { position: absolute; z-index: 3; background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 3px; padding: 10px 12px; font-size: 12px; pointer-events: none; min-width: 200px; }
-  .hover-card b { font-size: 13px; font-weight: 500; display: block; margin-bottom: 4px; }
-</style>
-
+<body data-tab="access" data-page="users" data-crumb="Users">
 <main class="main" id="main">
-  <div class="tip"><span><b>毎朝の健康確認はここから。</b>赤い拠点は切断中です。クリックすると、その拠点の監視画面（Site Monitoring）に移動します。</span></div>
+  <div class="page-title"><h1>Users</h1><span class="muted" id="cnt"></span></div>
+  <div class="tip"><span><b>おすすめは SCIM 連携：</b>Entra ID / Okta などで社員を追加・無効化すると、ほぼリアルタイムで Cato にも反映されます。<b>退職者対応は IdP 側で無効化</b>するのが原則で、SCIM 由来のユーザーをここで直接消しても、次の同期で戻ってしまいます。リモート接続には SDP ライセンスの割り当てが必要です。</span></div>
   <div class="card">
-    <div class="topo-head">
-      <div class="topo-title">Topology</div>
-      <div class="ico-blk">${site}</div>
-      <div class="stat"><b id="nSites">0</b> Sites</div>
-      <div class="stat-sep" aria-hidden="true"></div>
-      <div class="stat ok"><b id="nConn">0</b> Connected</div>
-      <div class="stat ng"><b id="nDisc">0</b> Disconnected</div>
-      <div class="ico-blk">${users}</div>
-      <div class="stat"><b id="nSdp">0</b> Connected SDP Users</div>
-      <div class="topo-search">${search}<input class="input" id="topoSearch" placeholder="Search" aria-label="サイトを検索"></div>
-      <button class="topo-refresh" id="refresh" type="button" aria-label="更新">${refresh}</button>
+    <div class="subtabs" role="tablist"><button role="tab" aria-selected="true" type="button">Users Directory</button><button role="tab" aria-selected="false" type="button" data-na="User Groups">User Groups</button></div>
+    <div class="pol-bar">
+      <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search users" aria-label="ユーザーを検索"></div>
+      <label class="check"><input type="checkbox" id="onlyConn">接続中のみ</label>
+      <div class="btn-group" style="margin-left:auto"><a class="btn" href="directory-services.html">Directory Services</a><button class="btn btn-primary" id="new" type="button">＋ New</button></div>
     </div>
-    <div class="canvas" id="canvas">
-      <div class="zoom">
-        <button type="button" id="zIn" aria-label="拡大">${plus}</button>
-        <button type="button" id="zOut" aria-label="縮小">${minus}</button>
-        <button type="button" id="zCenter" aria-label="中央に戻す">${locate}</button>
-        <button type="button" id="zFit" aria-label="全体を表示">${shrink}</button>
-        <button type="button" id="zRefresh" aria-label="再描画">${refresh}</button>
-      </div>
-      <svg id="topo" viewBox="0 0 1200 640" role="img" aria-label="拠点とCatoクラウドの接続状況"></svg>
-      <div class="hover-card" id="hover" hidden></div>
-    </div>
-    <div class="legend-row"><span><span class="dot ok"></span>Connected（接続中）</span><span><span class="dot ng"></span>Disconnected（切断）</span><span><span class="dot warn"></span>Pending（Socket未接続の新規サイト）</span><span>中央の緑のリング＝Cato SASE Cloud（PoP とバックボーン）</span></div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Groups</th><th>SDP License</th><th>Client Status</th><th>Last Connected</th><th>OS</th><th>Origin</th></tr></thead><tbody id="rows"></tbody></table></div>
   </div>
 </main>
-
 <script src="assets/app.js"></script>
 <script>
 (function () {
-  // ヘッダーのアイコン差し込み
-  document.querySelectorAll(".topo-head, .zoom").forEach(function (el) {
-    el.innerHTML = el.innerHTML.replace(/\$\{(\w+)\}/g, function (_, n) { return App.icon(n); });
-  });
-  const sites = App.sites();
-  const sdpConnected = App.users().filter(function (u) { return u.connected; }).length;
-  document.getElementById("nSites").textContent = sites.length;
-  document.getElementById("nConn").textContent = sites.filter(function (s) { return s.status === "Connected"; }).length;
-  document.getElementById("nDisc").textContent = sites.filter(function (s) { return s.status === "Disconnected"; }).length;
-  document.getElementById("nSdp").textContent = sdpConnected;
-
-  const svg = document.getElementById("topo");
-  const cx = 600, cy = 330, R = 92;
-  let scale = 1, tx = 0, ty = 0;
-  const color = { Connected: "#6d86a2", Disconnected: "#d6333b", Pending: "#e58a00" };
-
-  function nodeSVG(s, i) {
-    const n = sites.length;
-    const ang = (-100 + (360 / Math.max(n, 3)) * i) * Math.PI / 180;
-    const dist = 250;
-    const x = cx + Math.cos(ang) * dist, y = cy + Math.sin(ang) * dist * 0.92;
-    const ex = cx + Math.cos(ang) * (R + 20), ey = cy + Math.sin(ang) * (R + 20) * 0.92;
-    const st = s.status === "Connected" ? "Connected" : s.status === "Disconnected" ? "Disconnected" : "Pending";
-    const isCloud = /Cloud/.test(s.type);
-    const c = color[st];
-    const fill = st === "Connected" ? c : "#fff";
-    const ic = st === "Connected" ? "#fff" : c;
-    const glyph = isCloud
-      ? '<path d="M-14 8a8 8 0 0 1-1-16 11 11 0 0 1 21 1 7.5 7.5 0 0 1-2 15z" fill="none" stroke="' + ic + '" stroke-width="2.2"/>'
-      : '<rect x="-9" y="-14" width="18" height="28" rx="1.5" fill="none" stroke="' + ic + '" stroke-width="2.2"/><path d="M-4 -8h3M2 -8h3M-4 -2h3M2 -2h3M-4 4h3M2 4h3" stroke="' + ic + '" stroke-width="2"/>';
-    const lblRight = x >= cx;
-    const lx = lblRight ? x + 40 : x - 40;
-    return '<line x1="' + ex.toFixed(1) + '" y1="' + ey.toFixed(1) + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="' + (st === "Disconnected" ? "#e7a3a6" : "#b9c2cc") + '" stroke-width="1.5" ' + (st === "Connected" ? "" : 'stroke-dasharray="5 4"') + '/>' +
-      '<g class="node" tabindex="0" role="link" data-id="' + s.id + '" transform="translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')" aria-label="' + App.esc(s.name) + ' ' + st + '">' +
-      '<circle class="nb" r="27" fill="' + fill + '" stroke="' + c + '" stroke-width="2"/>' + glyph +
-      '<g transform="translate(' + (lblRight ? 34 : -64) + ',-12)"><rect width="30" height="22" fill="#fff" stroke="#e1e4e8"/><circle cx="15" cy="11" r="6" fill="#cc0000"/></g>' +
-      '<text class="lbl" x="' + (lblRight ? 72 : -72) + '" y="-2" text-anchor="' + (lblRight ? "start" : "end") + '">' + App.esc(s.name) + '</text>' +
-      '<text class="lbl-sub" x="' + (lblRight ? 72 : -72) + '" y="14" text-anchor="' + (lblRight ? "start" : "end") + '">' + App.esc(s.type) + ' · ' + (st === "Connected" ? "PoP " + App.esc(s.pop) : st) + '</text>' +
-      '</g>';
-  }
-
+  let users = App.users();
+  let flash = null;
   function draw() {
-    const q = document.getElementById("topoSearch").value.trim().toLowerCase();
-    let sdp = "";
-    for (let k = 0; k < sdpConnected; k++) {
-      const a = (35 + k * 22) * Math.PI / 180;
-      const x = cx + Math.cos(a) * 165, y = cy + Math.sin(a) * 150;
-      sdp += '<line x1="' + (cx + Math.cos(a) * (R + 18)) + '" y1="' + (cy + Math.sin(a) * (R + 16)) + '" x2="' + x + '" y2="' + y + '" stroke="#cfd6dd"/>' +
-        '<g transform="translate(' + x + ',' + y + ')"><circle r="12" fill="#fff" stroke="#6d86a2" stroke-width="1.5"/><circle cy="-3" r="3.4" fill="none" stroke="#6d86a2" stroke-width="1.5"/><path d="M-6 7c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5" fill="none" stroke="#6d86a2" stroke-width="1.5"/></g>';
-    }
-    svg.innerHTML = '<g id="world" transform="translate(' + tx + ',' + ty + ') translate(' + cx + ',' + cy + ') scale(' + scale + ') translate(' + (-cx) + ',' + (-cy) + ')">' +
-      sdp + sites.map(nodeSVG).join("") +
-      '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="#138a60" stroke-width="30"/>' +
-      '</g>';
-    if (q) svg.querySelectorAll(".node").forEach(function (n) {
-      const s = sites.find(function (x) { return x.id === n.dataset.id; });
-      if (!s.name.toLowerCase().includes(q)) n.classList.add("dim");
-    });
-    svg.querySelectorAll(".node").forEach(function (n) {
-      const go = function () { App.db.set("selectedSite", n.dataset.id); location.href = "site.html"; };
-      n.addEventListener("click", go);
-      n.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
-      n.addEventListener("mouseenter", function () {
-        const s = sites.find(function (x) { return x.id === n.dataset.id; });
-        const h = document.getElementById("hover");
-        h.innerHTML = "<b>" + App.esc(s.name) + "</b>" +
-          '<div><span class="dot ' + (s.status === "Connected" ? "ok" : s.status === "Disconnected" ? "ng" : "warn") + '"></span>' + App.esc(s.status) + "</div>" +
-          '<div class="muted">' + App.esc(s.conn) + " / " + App.esc(s.city) + "</div>" +
-          '<div class="muted">クリックで Site Monitoring を開く</div>';
-        const r = n.getBoundingClientRect(), c = document.getElementById("canvas").getBoundingClientRect();
-        h.style.left = Math.min(r.left - c.left + 40, c.width - 230) + "px";
-        h.style.top = Math.max(8, r.top - c.top - 10) + "px";
-        h.hidden = false;
-      });
-      n.addEventListener("mouseleave", function () { document.getElementById("hover").hidden = true; });
+    const q = document.getElementById("q").value.trim().toLowerCase();
+    const oc = document.getElementById("onlyConn").checked;
+    document.getElementById("cnt").textContent = users.length + " users / SDP " + users.filter(function (u) { return u.sdp; }).length + " licenses";
+    document.getElementById("rows").innerHTML = users.filter(function (u) { return (!q || (u.last + u.first + u.email + u.groups.join()).toLowerCase().includes(q)) && (!oc || u.connected); }).map(function (u) {
+      return '<tr class="clickable ' + (u.id === flash ? "flash" : "") + '" data-id="' + u.id + '"><td>' + App.esc(u.last + " " + u.first) + "</td><td>" + App.esc(u.email) + "</td><td>" + App.chipsCell(u.groups, "—") + "</td><td>" +
+        (u.sdp ? '<span class="badge b-ok">Assigned</span>' : '<span class="badge b-gray">None</span>') + "</td><td>" + (u.disabled ? '<span class="badge b-ng">Disabled</span>' : u.connected ? '<span class="dot ok"></span>Connected' : '<span class="dot gray"></span>Disconnected') +
+        '</td><td class="num">' + (u.lastConn ? App.fmtShort(u.lastConn) : "—") + "</td><td>" + App.esc(u.os || "—") + "</td><td>" + (u.origin === "SCIM" ? '<span class="badge b-info">SCIM</span>' : '<span class="badge b-gray">Manual</span>') + "</td></tr>";
+    }).join("") || '<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">一致するユーザーがいません</td></tr>';
+    flash = null;
+    document.querySelectorAll("#rows tr[data-id]").forEach(function (tr) { tr.onclick = function () { edit(tr.dataset.id); }; });
+  }
+  function persist() { App.db.set("users", users); }
+  function edit(id) {
+    const u = users.find(function (x) { return x.id === id; });
+    const scim = u.origin === "SCIM";
+    App.panel({
+      title: "Edit User",
+      model: { name: u.last + " " + u.first, email: u.email, sdp: u.sdp, disabled: !!u.disabled },
+      intro: scim ? "このユーザーは <b>SCIM（IdP）から同期</b>されています。氏名・グループ・有効/無効は IdP 側で変更します。ここで変更できるのはライセンスなど Cato 側の設定だけです。" : null,
+      sections: [{ title: "User", open: true, fields: [
+        { key: "name", label: "Name", help: scim ? "IdP 管理のため変更不可" : "" },
+        { key: "email", label: "Email" },
+        { key: "sdp", label: "SDP License（リモートアクセスを許可）", type: "toggle", help: "割り当てると Client 導入のアクティベーションメールが送られます。" },
+        { key: "disabled", label: "Disable User（接続を止める）", type: "toggle", showIf: function () { return !scim; } }
+      ] }],
+      onApply: function (m) {
+        if (!scim) { const p = m.name.trim().split(/\s+/); u.last = p[0] || u.last; u.first = p.slice(1).join(" "); u.email = m.email; u.disabled = m.disabled; if (m.disabled) u.connected = false; }
+        if (u.sdp !== m.sdp) App.audit("Users", "Update", u.email, "SDP License: " + (u.sdp ? "Assigned" : "None") + " → " + (m.sdp ? "Assigned" : "None"));
+        u.sdp = m.sdp; persist(); flash = u.id; draw();
+        App.toast(m.sdp ? "保存しました。" + (scim ? "" : "") : "SDP ライセンスを外しました。このユーザーはリモート接続できなくなります。", "ok");
+      },
+      onDelete: function () {
+        if (scim) { App.toast("SCIM で同期されたユーザーは、IdP（Entra ID など）側で無効化・削除してください。ここで消しても次の同期で戻ります。", "warn", 7000); return; }
+        users = users.filter(function (x) { return x.id !== u.id; }); persist(); App.audit("Users", "Delete", u.email, "Manual user"); App.closePanel(); draw(); App.toast("ユーザーを削除しました。", "ok");
+      }
     });
   }
-  draw();
-  document.getElementById("topoSearch").addEventListener("input", draw);
-  document.getElementById("zIn").onclick = function () { scale = Math.min(2.2, scale + 0.2); draw(); };
-  document.getElementById("zOut").onclick = function () { scale = Math.max(0.5, scale - 0.2); draw(); };
-  document.getElementById("zCenter").onclick = function () { tx = 0; ty = 0; draw(); };
-  document.getElementById("zFit").onclick = function () { scale = 1; tx = 0; ty = 0; draw(); };
-  const refresh = function () { App.toast("トポロジーを更新しました。", "ok", 2000); draw(); };
-  document.getElementById("zRefresh").onclick = refresh;
-  document.getElementById("refresh").onclick = refresh;
-  // ドラッグで移動
-  let drag = null;
-  svg.addEventListener("pointerdown", function (e) { if (e.target.closest(".node")) return; drag = { x: e.clientX, y: e.clientY, tx: tx, ty: ty }; svg.setPointerCapture(e.pointerId); });
-  svg.addEventListener("pointermove", function (e) {
-    if (!drag) return;
-    const k = 1200 / svg.clientWidth;
-    tx = drag.tx + (e.clientX - drag.x) * k; ty = drag.ty + (e.clientY - drag.y) * k;
-    document.getElementById("world").setAttribute("transform", "translate(" + tx + "," + ty + ") translate(" + cx + "," + cy + ") scale(" + scale + ") translate(" + (-cx) + "," + (-cy) + ")");
+  document.addEventListener("DOMContentLoaded", function () {
+    draw();
+    document.getElementById("q").addEventListener("input", draw);
+    document.getElementById("onlyConn").addEventListener("change", draw);
+    document.getElementById("new").onclick = function () {
+      App.panel({
+        title: "Add User", model: { first: "", last: "", email: "", group: "全社員", sdp: true },
+        intro: "手動作成は少人数・検証用です。本番では SCIM / LDAP による同期を使います。",
+        sections: [{ title: "General", open: true, fields: [
+          { key: "last", label: "Last Name（姓）", req: true }, { key: "first", label: "First Name（名）", req: true },
+          { key: "email", label: "Email", req: true, placeholder: "例：newuser@example.co.jp" },
+          { key: "group", label: "Group", type: "select", options: ["全社員", "営業部", "経理部", "情報システム部", "業務委託"] },
+          { key: "sdp", label: "SDP License を割り当てる", type: "toggle" }
+        ] }],
+        onApply: function (m) {
+          if (!m.last.trim() || !m.email.trim()) { App.toast("姓と Email を入力してください。", "ng"); return false; }
+          const nu = { id: App.uid(), first: m.first.trim(), last: m.last.trim(), email: m.email.trim(), groups: [m.group], sdp: m.sdp, connected: false, origin: "Manual", lastConn: null, os: "" };
+          users.unshift(nu); persist(); flash = nu.id; draw();
+          App.audit("Users", "Create", nu.email, "Manual / Group: " + m.group);
+          App.toast("ユーザーを追加しました。" + (m.sdp ? "アクティベーションメールが送信されます（研修では送信されません）。" : ""), "ok", 5000);
+        }
+      });
+    };
   });
-  svg.addEventListener("pointerup", function () { drag = null; });
 })();
 </script>
 

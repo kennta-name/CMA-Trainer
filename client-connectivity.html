@@ -3,72 +3,49 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bandwidth Management | CMA Trainer</title>
+<title>Client Connectivity Policy | CMA Trainer</title>
 <meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body data-tab="network" data-page="bandwidth" data-crumb="Bandwidth Management">
+<body data-tab="access" data-page="client-connectivity" data-crumb="Client Connectivity Policy">
 <main class="main" id="main">
-  <div class="page-title"><h1>Bandwidth Management</h1><span class="muted">帯域の優先度プロファイル</span></div>
-  <div class="tip"><span>ここで作った Priority を、Network Rules の <b>Bandwidth Priority</b> で通信ごとに割り当てます。数字が小さいほど優先（2〜254、未指定のルールは p255）。変更は［Apply］→［Save］で反映されます。</span></div>
-  <div class="card">
-    <div class="pol-bar"><div class="btn-group" style="margin-left:auto"><button class="btn btn-primary" id="new" type="button">＋ New</button><button class="btn" id="save" type="button" disabled>Save</button></div></div>
-    <div class="status-banner pub" id="banner"></div>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Priority</th><th>Name</th><th>Limits</th><th>Upload Limit</th><th>Download Limit</th></tr></thead><tbody id="rows"></tbody></table></div>
-  </div>
+  <div class="page-title"><h1>Client Connectivity Policy</h1><span class="muted">Cato Client でのリモート接続を許可する条件</span></div>
+  <div class="tip"><span><b>注意：</b>どのルールにも当たらない端末は、一番下の既定ルール（<b>ANY ANY Block</b>）で接続できなくなります。ルールは上から順に評価され、デバイスポスチャの条件を満たさない場合は次のルールへ進みます。Device Checks は Windows / macOS の Client のみ対応です。</span></div>
+  <div id="pol"></div>
 </main>
 <script src="assets/app.js"></script>
 <script>
-(function () {
-  let list = App.db.get("bw", [
-    { priority: 10, name: "Voice / Web会議", limits: "No Limit", upl: "", dl: "" },
-    { priority: 20, name: "業務アプリ", limits: "No Limit", upl: "", dl: "" },
-    { priority: 30, name: "一般Web / SaaS", limits: "No Limit", upl: "", dl: "" },
-    { priority: 200, name: "バックアップ・大容量転送", limits: "Limit only when line is congested", upl: "30%", dl: "30%" }
-  ]);
-  let dirty = false;
-  function draw() {
-    list.sort(function (a, b) { return a.priority - b.priority; });
-    document.getElementById("save").disabled = !dirty;
-    const bn = document.getElementById("banner");
-    bn.className = "status-banner " + (dirty ? "dirty" : "pub");
-    bn.innerHTML = dirty ? "<b>未保存の変更があります。</b>［Save］で反映します。" : "保存済みのプロファイルを表示しています。";
-    document.getElementById("rows").innerHTML = list.map(function (b, i) {
-      return '<tr class="clickable" data-i="' + i + '"><td class="mono">p' + b.priority + "</td><td>" + App.esc(b.name) + "</td><td>" + App.esc(b.limits) + "</td><td>" + (App.esc(b.upl) || '<span class="muted">—</span>') + "</td><td>" + (App.esc(b.dl) || '<span class="muted">—</span>') + "</td></tr>";
-    }).join("") + '<tr class="locked"><td class="mono">p255</td><td>Default（未指定のルール）</td><td>No Limit</td><td>—</td><td>—</td></tr>';
-    document.querySelectorAll("#rows tr[data-i]").forEach(function (tr) { tr.onclick = function () { open(+tr.dataset.i); }; });
+App.policy({
+  mount: "#pol", key: "ccp", title: "Client Connectivity Policy", ruleNoun: "Client Connectivity Rule",
+  hasEnable: true, enableLabel: "Enable Policy", enabledText: "有効", disabledText: "無効：条件によらず接続を許可",
+  seed: function () { return { enabled: true, rules: [
+    { id: "c1", name: "Corporate Devices", enabled: true, users: ["Group: 全社員"], platforms: ["Windows", "macOS"], countries: [], posture: ["Corporate Device (Domain Joined)", "Antivirus Running"], action: "Allow WAN and Internet" },
+    { id: "c2", name: "Mobile Devices", enabled: true, users: ["Group: 全社員"], platforms: ["iOS", "Android"], countries: [], posture: [], action: "Allow Internet only" }
+  ] }; },
+  newRule: function () { return { name: "", enabled: true, users: [], platforms: [], countries: [], posture: [], action: "Allow WAN and Internet" }; },
+  columns: [
+    { h: "Name", v: function (r) { return App.esc(r.name) + (r._new ? ' <span class="badge b-info">New</span>' : ""); } },
+    { h: "Users/Groups", v: function (r) { return App.chipsCell(r.users); } },
+    { h: "Platforms", v: function (r) { return App.chipsCell(r.platforms); } },
+    { h: "Countries", v: function (r) { return App.chipsCell(r.countries); } },
+    { h: "Device Posture Profiles", v: function (r) { return App.chipsCell(r.posture); } },
+    { h: "Action", v: function (r) { return App.actionBadge(r.action); } }
+  ],
+  sections: [
+    { title: "Users/Groups", fields: [{ key: "users", label: "Users/Groups", type: "picker", options: App.opt.usersGroups }] },
+    { title: "Platforms", fields: [{ key: "platforms", label: "Platforms", type: "picker", options: App.opt.platforms }] },
+    { title: "Countries", fields: [{ key: "countries", label: "Countries", type: "picker", options: App.opt.countries }] },
+    { title: "Device Posture Profiles", fields: [{ key: "posture", label: "Device Posture Profiles", type: "picker", options: App.opt.posture, help: "複数選ぶと OR 条件。Any＝プロファイル条件なし。" }] },
+    { title: "Action", fields: [{ key: "action", label: "Action", type: "select", options: ["Allow WAN and Internet", "Allow Internet only", "Block WAN and Internet"],
+      help: "Allow Internet only：社内システムには入れず、インターネットのみ（条件を満たさない端末向け）。" }], summary: function (m) { return m.action; } }
+  ],
+  implicitBottom: { tip: "【既定ルール：Any Any Block】どのルールにも一致しない端末は、リモート接続できません。有効化する前に、自分の端末が上のルールに一致するか確認します。", cells: ["<b>Default</b>（implicit）", '<span class="muted">Any</span>', '<span class="muted">Any</span>', '<span class="muted">Any</span>', '<span class="muted">Any</span>', App.actionBadge("Block WAN and Internet")] },
+  onPublish: function (pub, prev) {
+    if (pub.rules.some(function (r) { return !prev.rules.some(function (p) { return p.id === r.id; }); })) App.complete("ccp_rule");
   }
-  function open(i) {
-    const isNew = i === -1;
-    App.panel({
-      title: isNew ? "Add Bandwidth Profile" : "Edit Bandwidth",
-      model: isNew ? { priority: 40, name: "", limits: "No Limit", upl: "", dl: "" } : App.clone(list[i]),
-      sections: [{ title: "Profile", open: true, fields: [
-        { key: "priority", label: "Priority（2〜254）", type: "number", req: true },
-        { key: "name", label: "Name（メモ）" },
-        { key: "limits", label: "Limits", type: "select", options: ["No Limit", "Always Limit", "Limit only when line is congested"], rerender: true },
-        { key: "upl", label: "Upload Limit（% または Mbps）", placeholder: "例：30% / 20Mbps", showIf: function (m) { return m.limits !== "No Limit"; } },
-        { key: "dl", label: "Download Limit（% または Mbps）", placeholder: "例：30% / 50Mbps", showIf: function (m) { return m.limits !== "No Limit"; } }
-      ] }],
-      onApply: function (m) {
-        m.priority = Math.round(+m.priority);
-        if (!(m.priority >= 2 && m.priority <= 254)) { App.toast("Priority は 2〜254 の範囲で入力します。", "ng"); return false; }
-        if (list.some(function (b, k) { return b.priority === m.priority && k !== i; })) { App.toast("その Priority は既に使われています。", "ng"); return false; }
-        if (m.limits === "No Limit") { m.upl = ""; m.dl = ""; }
-        if (isNew) list.push(m); else list[i] = m;
-        dirty = true; draw(); App.toast("適用しました。［Save］で反映します。", "warn");
-      },
-      onDelete: isNew ? null : function () { list.splice(i, 1); App.closePanel(); dirty = true; draw(); }
-    });
-  }
-  document.addEventListener("DOMContentLoaded", function () {
-    draw();
-    document.getElementById("new").onclick = function () { open(-1); };
-    document.getElementById("save").onclick = function () { App.db.set("bw", list); dirty = false; App.audit("Bandwidth Management", "Save", "Profiles", list.length + " profiles"); App.toast("保存しました。", "ok"); draw(); };
-  });
-})();
+});
 </script>
 
 </body>

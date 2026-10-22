@@ -3,49 +3,85 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Client Connectivity Policy | CMA Trainer</title>
+<title>Directory Services | CMA Trainer</title>
 <meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body data-tab="access" data-page="client-connectivity" data-crumb="Client Connectivity Policy">
+<body data-tab="access" data-page="directory" data-crumb="Directory Services">
 <main class="main" id="main">
-  <div class="page-title"><h1>Client Connectivity Policy</h1><span class="muted">Cato Client でのリモート接続を許可する条件</span></div>
-  <div class="tip"><span><b>注意：</b>どのルールにも当たらない端末は、一番下の既定ルール（<b>ANY ANY Block</b>）で接続できなくなります。ルールは上から順に評価され、デバイスポスチャの条件を満たさない場合は次のルールへ進みます。Device Checks は Windows / macOS の Client のみ対応です。</span></div>
-  <div id="pol"></div>
+  <div class="page-title"><h1>Directory Services</h1><span class="muted">IdP / AD とのユーザー同期</span></div>
+  <div class="tip"><span><b>選び方：</b>SCIM（推奨・ほぼリアルタイム・社内FWの受信許可不要）＞ LDAP（1日1回 0:00 GMT に同期、オンプレADは受信許可が必要）＞ 手動作成（少人数のみ）。</span></div>
+  <div class="card">
+    <div class="subtabs" role="tablist" id="tabs">
+      <button role="tab" aria-selected="true" type="button" data-t="scim">SCIM</button>
+      <button role="tab" aria-selected="false" type="button" data-t="ldap">LDAP</button>
+      <button role="tab" aria-selected="false" type="button" data-t="prov">User Provisioning</button>
+    </div>
+    <div class="card-b" id="body"></div>
+  </div>
 </main>
 <script src="assets/app.js"></script>
 <script>
-App.policy({
-  mount: "#pol", key: "ccp", title: "Client Connectivity Policy", ruleNoun: "Client Connectivity Rule",
-  hasEnable: true, enableLabel: "Enable Policy", enabledText: "有効", disabledText: "無効：条件によらず接続を許可",
-  seed: function () { return { enabled: true, rules: [
-    { id: "c1", name: "Corporate Devices", enabled: true, users: ["Group: 全社員"], platforms: ["Windows", "macOS"], countries: [], posture: ["Corporate Device (Domain Joined)", "Antivirus Running"], action: "Allow WAN and Internet" },
-    { id: "c2", name: "Mobile Devices", enabled: true, users: ["Group: 全社員"], platforms: ["iOS", "Android"], countries: [], posture: [], action: "Allow Internet only" }
-  ] }; },
-  newRule: function () { return { name: "", enabled: true, users: [], platforms: [], countries: [], posture: [], action: "Allow WAN and Internet" }; },
-  columns: [
-    { h: "Name", v: function (r) { return App.esc(r.name) + (r._new ? ' <span class="badge b-info">New</span>' : ""); } },
-    { h: "Users/Groups", v: function (r) { return App.chipsCell(r.users); } },
-    { h: "Platforms", v: function (r) { return App.chipsCell(r.platforms); } },
-    { h: "Countries", v: function (r) { return App.chipsCell(r.countries); } },
-    { h: "Device Posture Profiles", v: function (r) { return App.chipsCell(r.posture); } },
-    { h: "Action", v: function (r) { return App.actionBadge(r.action); } }
-  ],
-  sections: [
-    { title: "Users/Groups", fields: [{ key: "users", label: "Users/Groups", type: "picker", options: App.opt.usersGroups }] },
-    { title: "Platforms", fields: [{ key: "platforms", label: "Platforms", type: "picker", options: App.opt.platforms }] },
-    { title: "Countries", fields: [{ key: "countries", label: "Countries", type: "picker", options: App.opt.countries }] },
-    { title: "Device Posture Profiles", fields: [{ key: "posture", label: "Device Posture Profiles", type: "picker", options: App.opt.posture, help: "複数選ぶと OR 条件。Any＝プロファイル条件なし。" }] },
-    { title: "Action", fields: [{ key: "action", label: "Action", type: "select", options: ["Allow WAN and Internet", "Allow Internet only", "Block WAN and Internet"],
-      help: "Allow Internet only：社内システムには入れず、インターネットのみ（条件を満たさない端末向け）。" }], summary: function (m) { return m.action; } }
-  ],
-  implicitBottom: { cells: ["<b>Default</b>（implicit）", '<span class="muted">Any</span>', '<span class="muted">Any</span>', '<span class="muted">Any</span>', '<span class="muted">Any</span>', App.actionBadge("Block WAN and Internet")] },
-  onPublish: function (pub, prev) {
-    if (pub.rules.some(function (r) { return !prev.rules.some(function (p) { return p.id === r.id; }); })) App.complete("ccp_rule");
+(function () {
+  let cfg = App.db.get("dir", { scim: [{ idp: "Microsoft Entra ID", status: "Active", lastSync: Date.now() - 12 * 60e3, users: 6 }], ldap: { enabled: false, domain: "", bind: "", base: "" }, onboarding: true });
+  const T = {
+    scim: function () {
+      return '<div class="btn-group" style="margin-bottom:12px"><button class="btn btn-primary" id="newScim" type="button">＋ New SCIM App</button></div>' +
+        '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Identity Provider</th><th>Status</th><th>Last Sync</th><th>Synced Users</th><th></th></tr></thead><tbody>' +
+        cfg.scim.map(function (s, i) {
+          return "<tr><td>" + App.esc(s.idp) + "</td><td>" + (s.status === "Active" ? '<span class="badge b-ok">Active</span>' : '<span class="badge b-warn">' + App.esc(s.status) + "</span>") + '</td><td class="num">' + (s.lastSync ? App.fmt(s.lastSync) : "—") + '</td><td class="num">' + s.users + '</td><td><button class="btn" type="button" data-sync="' + i + '">Sync Status</button></td></tr>';
+        }).join("") + "</tbody></table></div>" +
+        '<p class="muted" style="margin-top:12px">同期エラーは Monitoring > Events の Event Type = <b>System</b> で確認できます。</p>';
+    },
+    ldap: function () {
+      return '<div style="max-width:620px"><label class="switch" style="margin-bottom:14px"><input type="checkbox" id="lEn" ' + (cfg.ldap.enabled ? "checked" : "") + '><span class="track"></span>Enable LDAP Sync</label>' +
+        '<div class="field"><label for="lDom">Domain Name</label><input class="input" id="lDom" value="' + App.esc(cfg.ldap.domain) + '" placeholder="例：corp.example.co.jp"></div>' +
+        '<div class="field"><label for="lBind">Bind DN</label><input class="input" id="lBind" value="' + App.esc(cfg.ldap.bind) + '" placeholder="例：CN=cato-sync,OU=Service,DC=corp,DC=example,DC=co,DC=jp"></div>' +
+        '<div class="field"><label for="lBase">Base DN</label><input class="input" id="lBase" value="' + App.esc(cfg.ldap.base) + '" placeholder="例：OU=Users,DC=corp,DC=example,DC=co,DC=jp"><span class="help">同期は 24 時間ごと（0:00 GMT）。オンプレ AD の場合、Cato からの LDAP 受信を許可する FW ルールが必要です。</span></div>' +
+        '<button class="btn btn-primary" id="lSave" type="button">Save</button></div>';
+    },
+    prov: function () {
+      return '<div style="max-width:620px"><label class="switch"><input type="checkbox" id="onb" ' + (cfg.onboarding ? "checked" : "") + '><span class="track"></span>Send activation (onboarding) email to new SDP users</label>' +
+        '<p class="muted" style="margin:10px 0 14px">SDP ライセンスを持つユーザーにだけ、Cato Client の導入案内メールが送られます。MDM（Intune など）で Client を一括配布する場合はオフにすることもあります。</p>' +
+        '<button class="btn btn-primary" id="pSave" type="button">Save</button></div>';
+    }
+  };
+  function show(t) {
+    document.querySelectorAll("#tabs button").forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.t === t)); });
+    document.getElementById("body").innerHTML = T[t]();
+    const ns = document.getElementById("newScim");
+    if (ns) ns.onclick = function () {
+      App.panel({
+        title: "New SCIM App", model: { idp: "Okta", token: "" },
+        sections: [{ title: "General", open: true, fields: [
+          { key: "idp", label: "Identity Provider", type: "select", options: ["Microsoft Entra ID", "Okta", "OneLogin", "OneWelcome", "Custom SCIM App"] },
+          { type: "info", key: "_i", html: "<span>［Apply］すると <b>SCIM URL</b> と <b>Bearer Token</b> が発行されます。IdP 側のプロビジョニング設定に貼り付けて接続します（トークンは発行時しか表示されないので控えておく）。</span>" }
+        ] }],
+        onApply: function (m) {
+          cfg.scim.push({ idp: m.idp, status: "Waiting for IdP", lastSync: null, users: 0 }); App.db.set("dir", cfg);
+          App.audit("Directory Services", "Create", "SCIM App", m.idp);
+          App.modal({ title: "SCIM 接続情報（研修用ダミー）", cancel: "", ok: "控えた",
+            body: '<div class="field"><span class="lbl">SCIM URL</span><code class="mono">https://scimservice.example.invalid/scim/v2/' + Math.random().toString(36).slice(2, 10) + '</code></div><div class="field"><span class="lbl">Bearer Token</span><code class="mono">TRAINING-' + Math.random().toString(36).slice(2, 18).toUpperCase() + "</code></div>" });
+          show("scim");
+        }
+      });
+    };
+    document.querySelectorAll("[data-sync]").forEach(function (b) { b.onclick = function () { const s = cfg.scim[+b.dataset.sync]; App.toast(s.idp + "：" + (s.status === "Active" ? "直近の同期は成功しています（" + s.users + " users）。" : "IdP 側でプロビジョニングを開始してください。"), s.status === "Active" ? "ok" : "warn"); }; });
+    const ls = document.getElementById("lSave");
+    if (ls) ls.onclick = function () {
+      cfg.ldap = { enabled: document.getElementById("lEn").checked, domain: document.getElementById("lDom").value, bind: document.getElementById("lBind").value, base: document.getElementById("lBase").value };
+      App.db.set("dir", cfg); App.audit("Directory Services", "Update", "LDAP", cfg.ldap.enabled ? "Enabled" : "Disabled"); App.toast("LDAP 設定を保存しました。", "ok");
+    };
+    const ps = document.getElementById("pSave");
+    if (ps) ps.onclick = function () { cfg.onboarding = document.getElementById("onb").checked; App.db.set("dir", cfg); App.toast("保存しました。", "ok"); };
   }
-});
+  document.addEventListener("DOMContentLoaded", function () {
+    show("scim");
+    document.querySelectorAll("#tabs button").forEach(function (b) { b.onclick = function () { show(b.dataset.t); }; });
+  });
+})();
 </script>
 
 </body>

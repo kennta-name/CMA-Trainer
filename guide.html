@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>操作要領 | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-page="guide" data-nomission="1" data-notour="1">
+<style>
+  html, body { height: auto; }
+  .g-head { background: var(--brand); color: #fff; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 31; background: var(--brand); }
+  .g-head-in { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; gap: 14px; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .g-head b { font-size: 17px; letter-spacing: .06em; }
+  .g-head small { opacity: .85; font-size: 12px; }
+  .g-head .sp { margin-left: auto; display: flex; gap: 8px; }
+  .g-head .btn { background: #fff; border-color: #fff; color: var(--brand-dark); }
+  .g-head .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.6); }
+  .g-wrap { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 28px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 80px; }
+  .toc { position: sticky; top: 70px; align-self: start; max-height: calc(100vh - 90px); overflow-y: auto; font-size: 13px; }
+  .toc h2 { font-size: 11px; letter-spacing: .1em; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+  .toc a { display: flex; gap: 8px; padding: 6px 10px; border-left: 3px solid transparent; color: var(--text); text-decoration: none; border-radius: 0 3px 3px 0; }
+  .toc a:hover { background: #eef1f3; }
+  .toc a.on { border-left-color: var(--brand); background: var(--brand-soft); }
+  .toc a span { color: var(--muted); font-family: var(--f-mono); font-size: 11px; min-width: 18px; padding-top: 2px; }
+  .toc a.must-link { color: var(--brand-dark); font-weight: 700; }
+  .g-main { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .g-main > * { min-width: 0; }
+  .sec { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 22px clamp(16px, 3vw, 30px); scroll-margin-top: 70px; }
+  .sec-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .sec-h .no { font-family: var(--f-mono); color: var(--brand); font-size: 13px; }
+  .sec h2 { font-size: 21px; font-weight: 700; text-wrap: balance; }
+  .sec .path { display: inline-block; font-family: var(--f-mono); font-size: 12px; background: var(--slate-soft); border: 1px solid #d8e0e8; padding: 1px 8px; border-radius: 3px; color: #3d566f; }
+  .sec .lead { color: var(--muted); margin: 6px 0 14px; max-width: 70ch; font-size: 13.5px; line-height: 1.8; }
+  .fig { border: 1px solid var(--line); border-radius: 4px; background: #fbfcfd; padding: 12px; margin: 10px 0 14px; overflow-x: auto; }
+  .fig svg { display: block; width: 100%; min-width: 560px; height: auto; font-family: var(--f-ui); }
+  .fig figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: s; }
+  .steps li { position: relative; padding-left: 36px; font-size: 13.5px; line-height: 1.7; min-height: 26px; }
+  .steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 1px; width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 12px; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+  .note { border-left: 4px solid var(--warn); background: var(--warn-soft); padding: 9px 12px; font-size: 13px; border-radius: 0 3px 3px 0; margin-top: 12px; }
+  .note.ng { border-left-color: var(--ng); background: var(--ng-soft); }
+  .practice { display: inline-flex; margin-top: 14px; }
+  .must-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 16px; }
+  .must-card { border: 2px solid var(--brand); border-radius: 6px; padding: 14px 16px; }
+  .must-card.real { border-color: var(--ng); }
+  .must-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+  .must-card .tag { font-size: 11px; padding: 1px 8px; border-radius: 99px; background: var(--brand); color: #fff; font-weight: 500; }
+  .must-card.real .tag { background: var(--ng); }
+  .must-card p.sub { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+  .chk { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .chk li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; font-size: 13px; line-height: 1.6; }
+  .chk li i { width: 20px; height: 20px; border: 2px solid var(--brand); border-radius: 4px; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700; color: var(--brand); margin-top: 1px; }
+  .must-card.real .chk li i { border-color: var(--ng); color: var(--ng); }
+  .chk b { display: block; }
+  .chk a { font-size: 12px; }
+  table.mini { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  .mini th, .mini td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  .mini th { background: #f6f8fa; font-weight: 500; color: var(--muted); font-size: 12px; }
+  @media (max-width: 900px) { .g-wrap { grid-template-columns: 1fr; } .toc { position: static; max-height: none; } .toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g-head small { display: none; } }
+</style>
+
+<header class="g-head">
+  <div class="g-head-in">
+    <div><b>CMA TRAINER</b> <small>操作要領（図解版）</small></div>
+    <div class="sp">
+      <a class="btn ghost" href="index.html" data-tip="研修の開始画面に戻ります。">開始画面</a>
+      <a class="btn" href="topology.html" data-tip="シミュレーター（管理画面）を開いて練習します。">シミュレーターを開く</a>
+    </div>
+  </div>
+</header>
+
+<div class="g-wrap">
+  <nav class="toc" aria-label="目次">
+    <h2>CONTENTS</h2>
+    <ol id="toc"></ol>
+  </nav>
+  <main class="g-main" id="gmain">
+
+    <!-- ===== 0 必須 ===== -->
+    <section class="sec" id="must" data-toc="まず必須でやること">
+      <div class="sec-h"><span class="no">00</span><h2>まず必須でやること</h2></div>
+      <p class="lead">最初に押さえるのは2つです。研修では「反映の流れ（Save → Publish）」を体で覚えること。本番では「自分専用の管理者アカウントと MFA」を整えてから触ること。</p>
+      <figure class="fig"><div data-fig="mustPath"></div><figcaption>図0-1　研修の進め方（この順番で進めると迷いません）</figcaption></figure>
+      <div class="must-grid">
+        <div class="must-card">
+          <h3><span class="tag">研修</span>このサイトで最初にやること</h3>
+          <p class="sub">上から順に。所要時間の目安は合計30分です。</p>
+          <ul class="chk">
+            <li><i>1</i><div><b>研修を開始する</b>開始画面で名前を入力（何を入れても可）。<a href="index.html">開始画面 →</a></div></li>
+            <li><i>2</i><div><b>画面の見方を確認する</b>右上の「?」でいつでも表示できます。ボタンにマウスを乗せると説明が出ます。</div></li>
+            <li><i>3</i><div><b>反映の流れを1回通す（最重要）</b>Internet Firewall にルールを1つ追加し、Apply → Save → Publish。<a href="internet-firewall.html">Internet Firewall →</a></div></li>
+            <li><i>4</i><div><b>Topology で全体を見る</b>赤い拠点を開いて、切断時の画面を確認。<a href="topology.html">Topology →</a></div></li>
+            <li><i>5</i><div><b>研修ミッションを残りすべて</b>右下の「研修ミッション」から。</div></li>
+          </ul>
+        </div>
+        <div class="must-card real">
+          <h3><span class="tag">本番</span>実機の管理画面で最初に必ずやること</h3>
+          <p class="sub">設定を変える前に、これだけは済ませておきます。</p>
+          <ul class="chk">
+            <li><i>1</i><div><b>自分専用の管理者アカウントでログインし、MFA を設定</b>共有アカウントは使わない（Audit Trail で誰の操作か追えなくなる）。</div></li>
+            <li><i>2</i><div><b>自分の権限（Role）と契約範囲を確認</b>Editor / Viewer のどちらか。マネージド契約では、自社で変更してよい範囲を販売代理店と確認。</div></li>
+            <li><i>3</i><div><b>正常時の状態を記録する（ベースライン）</b>Topology の拠点数・接続状態、主要拠点の遅延・帯域を控えておくと、異常に気づけます。</div></li>
+            <li><i>4</i><div><b>変更のルールを決める</b>変更申請（目的・影響範囲・切り戻し）、Publish 前のダブルチェック、ルール名の命名規則。</div></li>
+            <li><i>5</i><div><b>Audit Trail の確認を習慣にする</b>障害時は「直前に誰が何を変えたか」から確認。</div></li>
+          </ul>
+        </div>
+      </div>
+      <div class="note ng"><b>絶対にやってはいけないこと：</b>WAN Firewall の「Firewall Enabled」をオフにする（アクセス制御がなくなる）／ TLS Inspection を証明書の配布前に全社で有効化する／ 他の管理者のロックを本人に確認せず Override する。</div>
+    </section>
+
+    <!-- ===== 1 画面の見方 ===== -->
+    <section class="sec" id="layout" data-toc="画面の見方">
+      <div class="sec-h"><span class="no">01</span><h2>画面の見方</h2></div>
+      <p class="lead">管理画面は「上部タブ → 左メニュー → 作業エリア」の3段で目的の画面にたどり着きます。メニュー名は英語なので、場所は「Monitoring > Topology」のように書きます。</p>
+      <figure class="fig"><div data-fig="layout"></div><figcaption>図1-1　画面の構成（番号は下の表に対応）</figcaption></figure>
+      <table class="mini"><thead><tr><th style="width:44px">番号</th><th style="width:150px">場所</th><th>役割</th></tr></thead><tbody>
+        <tr><td>①</td><td>上部タブ</td><td>Monitoring（監視）／ Network（拠点・経路）／ Access（ユーザー）／ Security（FW・TLS）／ Administration（管理者）</td></tr>
+        <tr><td>②</td><td>左メニュー</td><td>タブの中の画面。緑の線が付いているのが今いる画面</td></tr>
+        <tr><td>③</td><td>パンくず</td><td>今どこにいるか。「Accounts」で開始画面に戻る</td></tr>
+        <tr><td>④</td><td>操作ボタン</td><td>New（追加）／ Save（保存）／ Publish（反映）。マウスを乗せると説明が出る</td></tr>
+        <tr><td>⑤</td><td>一覧</td><td>行をクリックすると右側に編集パネルが開く</td></tr>
+        <tr><td>⑥</td><td>操作要領 ／ ?</td><td>この手順書／画面の見方の再表示</td></tr>
+      </tbody></table>
+    </section>
+
+    <!-- ===== 2 反映 ===== -->
+    <section class="sec" id="publish" data-toc="変更を反映する（Save / Publish）">
+      <div class="sec-h"><span class="no">02</span><h2>変更を反映する ― Apply → Save → Publish</h2></div>
+      <p class="lead">ポリシー画面（Firewall・Network Rules・TLS Inspection・Client Connectivity）の変更は、3段階を踏んで初めて全社に反映されます。画面上部の帯の色で、今どの段階かが分かります。</p>
+      <figure class="fig"><div data-fig="publish"></div><figcaption>図2-1　変更が反映されるまでの流れと、帯の色の意味</figcaption></figure>
+      <ol class="steps">
+        <li>［New］または行のクリックで右側のパネルを開き、入力して <b>［Apply］</b>。一覧に反映されるが、帯は<b>黄色（未保存）</b>。</li>
+        <li><b>［Save］</b>で自分専用の未公開リビジョンに保存。帯は<b>青（未公開）</b>。他の管理者からは見えず、触ったルールはロックされる。</li>
+        <li><b>［Compare View］</b>で変更点を確認してから <b>［Publish］</b> → 確認画面でもう一度 <b>［Publish］</b>。帯が<b>緑</b>になり、全社に反映。</li>
+      </ol>
+      <div class="note">Publish は取り消せません。戻したいときは「逆の変更」をもう一度 Save → Publish します。やめたいときは Publish 前に［Discard］。</div>
+      <a class="btn btn-primary practice" href="internet-firewall.html">Internet Firewall で練習する →</a>
+    </section>
+
+    <!-- ===== 3 評価順 ===== -->
+    <section class="sec" id="order" data-toc="ルールは上から評価される">
+      <div class="sec-h"><span class="no">03</span><h2>ルールは上から順に評価される</h2></div>
+      <p class="lead">通信は一番上のルールから順に照合され、<b>最初に一致したルール</b>で結果が決まります。どれにも一致しなければ、一番下の既定ルールが適用されます。既定ルールの中身は画面によって逆なので注意します。</p>
+      <figure class="fig"><div data-fig="order"></div><figcaption>図3-1　評価の順番（左）と、既定ルールの違い（右）</figcaption></figure>
+      <div class="note">「許可ルールを追加したのに見られない」ときは、そのルールより<b>上</b>にある Block ルールに先に当たっていないか確認します。Position（Rule Order）で上に移動します。</div>
+    </section>
+
+    <!-- ===== 4 拠点追加 ===== -->
+    <section class="sec" id="site" data-toc="拠点を追加する">
+      <div class="sec-h"><span class="no">04</span><h2>拠点（サイト）を追加する</h2><span class="path">Network > Sites > New</span></div>
+      <p class="lead">先に管理画面でサイトを作っておけば、現地では Socket に回線と LAN をつないで電源を入れるだけで接続されます（ゼロタッチ）。</p>
+      <figure class="fig"><div data-fig="site"></div><figcaption>図4-1　Add Site パネルの入力項目（左）と、ゼロタッチ導入の流れ（右）</figcaption></figure>
+      <table class="mini"><thead><tr><th style="width:44px">番号</th><th style="width:170px">項目</th><th>入力のポイント</th></tr></thead><tbody>
+        <tr><td>①</td><td>Site Name</td><td>命名規則を決める（例：JP-TKY-HQ ＝ 国-都市-拠点）</td></tr>
+        <tr><td>②</td><td>Connection Type</td><td>Socket の型番・vSocket・IPsec。作成後は変えられないので正確に</td></tr>
+        <tr><td>③</td><td>Country / City / Time Zone</td><td>最寄り PoP と、Socket 自動アップグレードの時間帯に影響</td></tr>
+        <tr><td>④</td><td>WAN 帯域</td><td>ライセンス帯域に合わせる。2本目の回線は Enable WAN2</td></tr>
+        <tr><td>⑤</td><td>Native Range</td><td>拠点LANのサブネット（例 10.30.0.0/24）。<b>他拠点と重複させない</b></td></tr>
+        <tr><td>⑥</td><td>License</td><td>地域・帯域に合ったライセンスを選び［Apply］</td></tr>
+      </tbody></table>
+      <a class="btn btn-primary practice" href="sites.html">Sites で練習する →</a>
+    </section>
+
+    <!-- ===== 5 監視 ===== -->
+    <section class="sec" id="monitor" data-toc="拠点の状態を見る">
+      <div class="sec-h"><span class="no">05</span><h2>拠点の状態を見る</h2><span class="path">Monitoring > Topology</span><span class="path">Network > Sites > {拠点} > Snapshot / Network Analytics</span></div>
+      <p class="lead">毎朝、Topology で赤い拠点がないかを確認します。気になる拠点はクリックして Snapshot（今の状態）と Network Analytics（24時間の推移）を見ます。</p>
+      <figure class="fig"><div data-fig="monitor"></div><figcaption>図5-1　見る順番と、グラフの読み方</figcaption></figure>
+      <a class="btn btn-primary practice" href="topology.html">Topology で練習する →</a>
+    </section>
+
+    <!-- ===== 6 NAT ===== -->
+    <section class="sec" id="nat" data-toc="固定IPで外に出す（NAT）">
+      <div class="sec-h"><span class="no">06</span><h2>固定IPで外に出す ― IP Allocation と NAT</h2><span class="path">Network > IP Allocation</span><span class="path">Network > Network Rules</span></div>
+      <p class="lead">Cato を通すと、送信元IPは PoP の共有IPに変わります。IPアドレスで接続制限している取引先・SaaS には、自社専用の <b>Allocated IP</b> から出すように設定します。</p>
+      <figure class="fig"><div data-fig="nat"></div><figcaption>図6-1　共有IP（上：拒否される）と Allocated IP（下：許可される）</figcaption></figure>
+      <ol class="steps">
+        <li>Network > IP Allocation で Location（例：Tokyo）を選び［Allocate］→［Save］。割り当てられたIPを控える。</li>
+        <li>Network > Network Rules で［New］→ New Rule。Rule Type は <b>Internet</b>、App/Category で対象サービスを指定。</li>
+        <li>Configuration の Route/NAT で <b>NAT</b> を選び、Allocated IP を指定 → Apply → Save → Publish。</li>
+        <li>取引先・SaaS の管理者に、その IP を許可リストへ登録してもらう。</li>
+      </ol>
+      <a class="btn btn-primary practice" href="ip-allocation.html">IP Allocation で練習する →</a>
+    </section>
+
+    <!-- ===== 7 QoS ===== -->
+    <section class="sec" id="qos" data-toc="Web会議を優先する（QoS）">
+      <div class="sec-h"><span class="no">07</span><h2>Web会議を優先する ― Bandwidth Priority</h2><span class="path">Network > Network Rules</span><span class="path">Network > Bandwidth Management</span></div>
+      <p class="lead">回線が混んだとき、どの通信を先に流すかを決めます。<b>数字が小さいほど優先</b>。ルールを作っただけでは既定の p255（最後）になります。</p>
+      <figure class="fig"><div data-fig="qos"></div><figcaption>図7-1　混雑時の送り出しの順番</figcaption></figure>
+      <a class="btn btn-primary practice" href="network-rules.html">Network Rules で練習する →</a>
+    </section>
+
+    <!-- ===== 8 TLS ===== -->
+    <section class="sec" id="tls" data-toc="TLS Inspection">
+      <div class="sec-h"><span class="no">08</span><h2>TLS Inspection（HTTPS の検査）</h2><span class="path">Security > TLS Inspection</span></div>
+      <p class="lead">暗号化された通信を PoP で一度開けて検査し、もう一度暗号化して送ります。端末に<b>ルート証明書</b>が入っていないと証明書エラーになります。</p>
+      <figure class="fig"><div data-fig="tls"></div><figcaption>図8-1　検査される通信（上）と、Bypass で検査しない通信（下）</figcaption></figure>
+      <ol class="steps">
+        <li>MDM（Intune など）でルート証明書を全端末に配布する（<b>有効化より先に</b>）。</li>
+        <li>パイロットユーザーに限定して「Enable TLS Inspection」をオン → Save → Publish。</li>
+        <li>動かなくなったアプリを Events で探し、Bypass ルールを追加 → Save → Publish。</li>
+        <li>問題が出なくなってから対象を全社に広げる。</li>
+      </ol>
+      <a class="btn btn-primary practice" href="tls-inspection.html">TLS Inspection で練習する →</a>
+    </section>
+
+    <!-- ===== 9 users ===== -->
+    <section class="sec" id="users" data-toc="ユーザーとリモート接続">
+      <div class="sec-h"><span class="no">09</span><h2>ユーザーとリモート接続</h2><span class="path">Access > Users</span><span class="path">Access > Directory Services</span><span class="path">Access > Client Connectivity Policy</span></div>
+      <p class="lead">ユーザーは IdP（Entra ID など）から SCIM で自動同期するのが基本です。リモート接続できるかは、SDP ライセンスの有無と Client Connectivity Policy で決まります。</p>
+      <figure class="fig"><div data-fig="users"></div><figcaption>図9-1　ユーザーが同期されてから、接続が許可されるまで</figcaption></figure>
+      <div class="note"><b>退職者対応</b>は IdP 側でアカウントを無効化するのが原則です。SCIM で同期されたユーザーを Cato 側だけで消しても、次の同期で戻ります。</div>
+      <a class="btn btn-primary practice" href="client-connectivity.html">Client Connectivity Policy で練習する →</a>
+    </section>
+
+    <!-- ===== 10 events ===== -->
+    <section class="sec" id="events" data-toc="Events で原因を探す">
+      <div class="sec-h"><span class="no">10</span><h2>Events で原因を探す</h2><span class="path">Monitoring > Events</span></div>
+      <p class="lead">「このサイトが見られない」と言われたら、Events で<b>どのルールに止められたか</b>を確認します。</p>
+      <figure class="fig"><div data-fig="events"></div><figcaption>図10-1　3ステップで絞り込む</figcaption></figure>
+      <div class="note">イベントが表示されるまで約5分、まれに30分かかります。ルールの Track（記録）がオフだと、そのルールのイベントは残りません。</div>
+      <a class="btn btn-primary practice" href="events.html">Events で練習する →</a>
+    </section>
+
+    <!-- ===== 11 trouble ===== -->
+    <section class="sec" id="trouble" data-toc="拠点がつながらないとき">
+      <div class="sec-h"><span class="no">11</span><h2>拠点がつながらないときの切り分け</h2></div>
+      <p class="lead">上から順に確認します。各段で原因が見つかれば、その右の対応を行います。</p>
+      <figure class="fig"><div data-fig="trouble"></div><figcaption>図11-1　切り分けフロー</figcaption></figure>
+    </section>
+
+    <!-- ===== 12 admin ===== -->
+    <section class="sec" id="admin" data-toc="管理者と操作履歴">
+      <div class="sec-h"><span class="no">12</span><h2>管理者アカウントと操作履歴</h2><span class="path">Administration > Administrators</span><span class="path">Monitoring > Audit Trail</span></div>
+      <p class="lead">管理者は1人1アカウント。追加すると招待メールが届き、本人が有効化して MFA を設定すると Active になります。設定変更はすべて Audit Trail に記録されます。</p>
+      <figure class="fig"><div data-fig="admin"></div><figcaption>図12-1　管理者アカウントの一生と、Audit Trail の使いどころ</figcaption></figure>
+      <a class="btn btn-primary practice" href="administrators.html">Administrators で練習する →</a>
+    </section>
+
+    <p class="foot-note">この操作要領は、Cato Networks の公開ドキュメントと添付いただいた実機画面をもとにした非公式の学習資料です。実機の画面・メニューはアップデートで変わることがあります。作業前に最新の公式ドキュメントを確認してください。</p>
+  </main>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  /* ---------- SVG 作図ヘルパー ---------- */
+  const C = { green: "#1f8a5b", gsoft: "#eaf6ef", slate: "#6d86a2", ssoft: "#eef2f6", red: "#d6333b", rsoft: "#fdecec", orange: "#e58a00", osoft: "#fff5e1", blue: "#1a73e8", bsoft: "#e8f1fd", ink: "#2b2f33", muted: "#6b7178", line: "#c9ced4", white: "#ffffff" };
+  function lines(t) { return String(t).split("\n"); }
+  function T(x, y, t, o) {
+    o = o || {};
+    const ls = lines(t), fs = o.fs || 12, lh = fs * 1.35;
+    const y0 = o.mid ? y - ((ls.length - 1) * lh) / 2 + fs * 0.35 : y;
+    return ls.map(function (l, i) { return '<text x="' + x + '" y="' + (y0 + i * lh) + '" font-size="' + fs + '" fill="' + (o.c || C.ink) + '" text-anchor="' + (o.a || "start") + '" font-weight="' + (o.b ? 700 : 400) + '">' + App.esc(l) + "</text>"; }).join("");
+  }
+  function G(tip, inner) { return tip ? '<g class="tg" data-tip="' + App.esc(tip) + '">' + inner + "</g>" : inner; }
+  function B(x, y, w, h, t, o) {
+    o = o || {};
+    const key = t ? String(t) : "";
+    const tip = o.tip || GT[key] || GT[key.split("\n")[0]];
+    return G(tip, '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + (o.r == null ? 4 : o.r) + '" fill="' + (o.f || C.white) + '" stroke="' + (o.s || C.line) + '" stroke-width="' + (o.sw || 1.2) + '"' + (o.dash ? ' stroke-dasharray="5 4"' : "") + "/>" +
+      (t ? T(x + w / 2, y + h / 2, t, { a: "middle", mid: true, fs: o.fs || 12, c: o.c, b: o.b }) : ""));
+  }
+  function A(x1, y1, x2, y2, o) {
+    o = o || {};
+    const c = o.c || C.muted;
+    const a = Math.atan2(y2 - y1, x2 - x1), s = 7;
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + c + '" stroke-width="' + (o.w || 1.6) + '"' + (o.dash ? ' stroke-dasharray="5 4"' : "") + "/>" +
+      '<polygon points="' + x2 + "," + y2 + " " + (x2 - s * Math.cos(a - 0.45)) + "," + (y2 - s * Math.sin(a - 0.45)) + " " + (x2 - s * Math.cos(a + 0.45)) + "," + (y2 - s * Math.sin(a + 0.45)) + '" fill="' + c + '"/>' +
+      (o.t ? T((x1 + x2) / 2 + (o.dx || 0), (y1 + y2) / 2 + (o.dy || -6), o.t, { a: "middle", fs: o.fs || 11, c: o.tc || c }) : "");
+  }
+  function N(n, x, y, c, tip) { return G(tip, '<circle cx="' + x + '" cy="' + y + '" r="11" fill="' + (c || C.orange) + '"/>' + T(x, y + 4, String(n), { a: "middle", fs: 12, c: "#fff", b: true })); }
+  function svg(w, h, inner, label) { return '<svg viewBox="0 0 ' + w + " " + h + '" role="img" aria-label="' + App.esc(label) + '">' + inner + "</svg>"; }
+  // ミニ管理画面の枠
+  function frame(x, y, w, h, tab, sideItems, active) {
+    let s = B(x, y, w, h, "", { f: "#f4f5f7", r: 6 }) + '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="26" rx="6" fill="#fff" stroke="' + C.line + '"/>' +
+      '<rect x="' + x + '" y="' + y + '" width="86" height="26" fill="' + C.green + '"/>' + T(x + 9, y + 17, "CMA TRAINER", { fs: 9.5, c: "#fff", b: true });
+    const tabs = ["Monitoring", "Network", "Access", "Security", "Administration"];
+    let tx = x + 96;
+    tabs.forEach(function (t) { const on = t === tab; s += T(tx, y + 17, t, { fs: 9, c: on ? C.green : C.ink, b: on }); if (on) s += '<rect x="' + (tx - 2) + '" y="' + (y + 23) + '" width="' + (t.length * 5.6 + 4) + '" height="3" fill="' + C.green + '"/>'; tx += t.length * 5.6 + 14; });
+    s += '<rect x="' + x + '" y="' + (y + 26) + '" width="86" height="' + (h - 26) + '" fill="#fff" stroke="' + C.line + '"/>';
+    (sideItems || []).forEach(function (it, i) {
+      const yy = y + 40 + i * 17;
+      if (it === active) s += '<rect x="' + (x + 1) + '" y="' + (yy - 11) + '" width="85" height="16" fill="' + C.gsoft + '"/><rect x="' + (x + 1) + '" y="' + (yy - 11) + '" width="3" height="16" fill="' + C.green + '"/>';
+      s += T(x + 10, yy, it, { fs: 8.5 });
+    });
+    return s;
+  }
+
+
+  /* 図の部品ごとの解説（マウスを乗せると表示） */
+  const GT = {
+    "Apply": "Apply：パネルの入力を一覧に反映する操作。この時点ではまだ保存されていません。",
+    "通信": "照合される通信の例：鈴木さんが取引先ポータルを開こうとしている。",
+    "1  Block Risky Categories": "1番目のルール：危険カテゴリ向けではないので一致しない → 次のルールへ。",
+    "2  Block Uncategorized": "2番目のルール：宛先が「未分類」なので一致 → Block で決定。ここで照合は終わります。",
+    "3  Prompt Social Networks": "3番目以降は評価されません（先に2番目で決まったため）。",
+    "Default  Any Any Allow": "既定ルール：どれにも一致しなかったときだけ使われます。",
+    "① 管理画面で": "Network > Sites > New でサイトを作成し、Apply。",
+    "② Socket を発送": "Socket のシリアルをサイトに紐づけて現地へ発送。PPPoE・固定IPなら回線情報も事前登録。",
+    "③ 現地：回線とLANを": "現地では配線して電源を入れるだけ。専門の技術者は不要です。",
+    "⑤ 確認": "Topology で緑表示、Snapshot で Link Up・RTT、疎通テストで開通確認。",
+    "Topology": "Monitoring > Topology：赤い拠点（切断）がないかを毎朝確認。",
+    "Snapshot": "Network > Sites > {拠点} > Snapshot：回線の Up/Down、遅延、接続履歴。",
+    "Network Analytics": "Network > Sites > {拠点} > Network Analytics：24時間のスループット・ロス・遅延・ジッタ。",
+    "スループットが契約帯域に張り付く": "帯域不足のサイン。増速するか、大容量通信の優先度を下げます。",
+    "ラストマイルのロスも高い": "Cato の外（ISP 側）でロスが起きています。回線事業者へ相談。",
+    "ジッタが大きい": "遅延の揺らぎ。Web会議や電話の音声が途切れる原因になります。",
+    "Connected の時間が短い": "頻繁に切断・再接続しているサイン。Recent Connections を確認。",
+    "社員の PC": "拠点内または在宅の社員の端末。通信は最寄りの PoP を経由します。",
+    "送信元：PoP の共有IP": "何も設定しないと、PoP の共有IPから外に出ます（他社と共有・変わる可能性あり）。IP 制限のあるサービスでは拒否されます。",
+    "送信元：Allocated IP": "IP Allocation で割り当てた自社専用の固定IP。Network Rule の NAT で指定します。",
+    "取引先ポータル / SaaS": "IP アドレスで接続を制限しているサービス。許可リストに Allocated IP を登録してもらいます。",
+    "p10": "最優先。Web会議・電話など遅れると困る通信。",
+    "p20": "業務アプリ。", "p30": "一般的な Web・SaaS。",
+    "p200": "後回しでよい大容量通信（バックアップなど）。制限をかけることもできます。",
+    "p255": "既定。優先度を指定していないルールはここになり、混雑時は最後に流れます。",
+    "PC": "利用者の端末。TLS Inspection にはルート証明書のインストールが必要です。",
+    "PC\n＋ルート証明書": "ルート証明書が入っている端末。PoP が再暗号化した通信を信頼できます。",
+    "復号": "PoP で HTTPS の暗号を一度解きます。",
+    "検査\nIPS・マルウェア・DLP": "中身を検査（攻撃・マルウェア・情報漏えい）。危険なら遮断。",
+    "再暗号化": "検査後にもう一度暗号化して宛先へ送ります。",
+    "Web サイト\n（HTTPS）": "宛先の Web サイト。",
+    "銀行・医療サイト": "プライバシーや証明書ピン留めの都合で、検査しない（Bypass）対象。",
+    "IdP\nEntra ID / Okta": "社員アカウントの元データ。ここで追加・無効化すると Cato に自動で反映されます。",
+    "Access > Users\nユーザー＋SDPライセンス": "同期されたユーザー一覧。SDP ライセンスがある人だけリモート接続できます。",
+    "Client Connectivity\nPolicy\n上から順に判定": "接続してきた端末を、ルールに上から順に照合して接続の可否を決めます。",
+    "Allow WAN and Internet": "社内システムとインターネットの両方に接続できる（WAN 側は WAN Firewall にも従う）。",
+    "Allow Internet only": "インターネットだけ使える。社内システムには入れない。",
+    "Block（既定ルール）": "どのルールにも一致しない端末は接続できません。",
+    "Cato 側・広域障害の可能性": "複数拠点が同時に落ちているなら Cato 側や広域の障害を疑い、障害情報を確認します。",
+    "現地の電源・ケーブル・ONU": "全回線が Down なら、まず現地の物理的な状態を確認します。",
+    "冗長回線で継続中": "片方の回線だけ落ちている状態。通信は続いていますが、早めに回線事業者へ連絡します。",
+    "インスタンス停止・SG・": "vSocket はクラウド側の設定（停止・セキュリティグループ・ルート）が原因のことが多いです。",
+    "現地LANから Socket WebUI で": "管理画面から状態が見えないときは、現地で Socket に直接アクセスして確認します。",
+    "New\nEmail・Role を入力": "Administration > Administrators > New で作成。何を入力しても進めるのは研修版のみ。",
+    "Invited\n招待メール送信": "招待メールが届いた状態。本人が有効化するまで待ちます。",
+    "Active\n本人が有効化\n＋MFA 設定": "利用中。MFA が設定されていることを確認します。",
+    "棚卸し\n四半期ごと\n退職時は即削除": "不要な管理者が残らないよう定期的に見直します。",
+    "Reset MFA": "端末の紛失・機種変更時に使用。本人は次回ログインで MFA を再登録します。",
+    "操作要領": "この手順書を開くボタン。", "ヒント：この画面で注意するポイント": "シミュレーターの各画面上部に出るヒント（実機にはありません）。",
+    "Published Revision #3 ▾": "表示中のリビジョン。自分の未公開リビジョンと公開中のものを切り替えます。",
+    "New": "New：ルールを追加。", "Compare": "Compare View：公開中との差分を確認。", "Discard": "Discard：未公開の変更を破棄。", "Save": "Save：未公開リビジョンに保存。", "Publish": "Publish：全社に反映（取り消し不可）。",
+    "最重要": "このステップが一番大事。Save だけでは反映されないことを体で覚えます。"
+  };
+  /* 図全体の解説 */
+  const FIGTIP = {
+    mustPath: "研修の進め方：左から順に5ステップ。各丸にマウスを乗せると詳細が出ます。",
+    layout: "画面の構成図：オレンジの番号にマウスを乗せると各部分の役割が出ます。",
+    publish: "変更の反映：Apply → Save → Publish の3段階。箱にマウスを乗せると各段階の状態が出ます。",
+    order: "ルールの評価順：上から順に照合し、最初に一致したルールで決まります。",
+    site: "拠点追加：左がパネルの入力項目、右がゼロタッチ導入の流れ。",
+    monitor: "拠点監視：見る順番と、グラフの読み方。",
+    nat: "固定IPと NAT：上は拒否される例、下は許可される例。",
+    qos: "優先度：数字が小さいほど先に流れます。",
+    tls: "TLS Inspection：上が検査される通信、下が Bypass される通信。",
+    users: "ユーザー同期から接続許可までの流れ。",
+    events: "Events の調べ方：3ステップで原因のルールを特定します。",
+    trouble: "切り分けフロー：上から順に確認。ひし形にマウスを乗せると確認方法が出ます。",
+    admin: "管理者アカウントの流れと Audit Trail。"
+  };
+  /* ---------- 図 ---------- */
+  const FIG = {
+    mustPath: function () {
+      const st = [["研修を開始", "名前を入力"], ["画面の見方", "右上の ?"], ["反映の流れ", "Save → Publish"], ["Topology", "全体を確認"], ["ミッション", "残りを順番に"]];
+      let s = "";
+      st.forEach(function (p, i) {
+        const x = 20 + i * 168;
+        const key = i === 2;
+        s += G(["開始画面で名前を入力して［研修を開始］。何を入力しても進めます。", "右上の「?」で画面の見方を表示。ボタン・行・図にマウスを乗せると説明が出ます。", "Internet Firewall でルールを追加し Apply → Save → Publish。研修で一番大事なステップです。", "Monitoring > Topology で赤い拠点を開き、切断時の画面を確認します。", "右下の「研修ミッション」を上から順にすべて達成します。"][i], '<circle cx="' + (x + 60) + '" cy="58" r="40" fill="' + (key ? C.green : C.gsoft) + '" stroke="' + C.green + '" stroke-width="2"/>' +
+          T(x + 60, 52, "STEP " + (i + 1), { a: "middle", fs: 10, c: key ? "#fff" : C.green, b: true }) + T(x + 60, 70, p[0], { a: "middle", fs: 12.5, c: key ? "#fff" : C.ink, b: true }) +
+          T(x + 60, 120, p[1], { a: "middle", fs: 11.5, c: C.muted }));
+        if (key) s += B(x + 8, 136, 104, 20, "最重要", { f: C.osoft, s: C.orange, fs: 11, c: "#8a5200", b: true, r: 10 });
+        if (i < 4) s += A(x + 104, 58, x + 164, 58, { c: C.green });
+      });
+      return svg(860, 164, s, "研修の進め方5ステップ");
+    },
+    layout: function () {
+      let s = frame(10, 10, 840, 330, "Security", ["Internet Firewall", "WAN Firewall", "TLS Inspection"], "Internet Firewall");
+      s += B(620, 15, 72, 16, "操作要領", { f: C.gsoft, s: C.green, fs: 9, c: C.green, r: 8 }) + '<circle cx="830" cy="23" r="8" fill="none" stroke="#2b2f33"/>' + T(830, 27, "?", { a: "middle", fs: 10 });
+      s += T(110, 54, "Accounts / Internet Firewall", { fs: 9.5, c: C.blue });
+      s += B(110, 64, 724, 26, "ヒント：この画面で注意するポイント", { f: "#fffbea", s: "#f1df9b", fs: 10, c: "#6c5300" });
+      s += B(110, 98, 724, 230, "", { f: "#fff" });
+      s += B(118, 106, 180, 20, "Published Revision #3 ▾", { fs: 9.5 });
+      [["New", 560], ["Compare", 610], ["Discard", 668], ["Save", 722], ["Publish", 772]].forEach(function (b) { s += B(b[1], 106, b[0] === "Publish" ? 54 : 48, 20, b[0], { fs: 9.5, f: b[0] === "Publish" ? C.green : "#fff", s: b[0] === "Publish" ? C.green : C.line, c: b[0] === "Publish" ? "#fff" : C.ink }); });
+      s += '<rect x="111" y="132" width="722" height="20" fill="#f2faf5"/>' + T(122, 146, "公開中のポリシー（Revision #3）です", { fs: 9.5, c: "#1d6e43" });
+      ["# On  Name                 Source   App/Category            Action", "1  ●   Block Risky Categories   Any   Gambling, Anonymizers   Block", "2  ●   Block Uncategorized      Any   Uncategorized           Block", "3  ●   Prompt Social Networks   全社員 Social Networks         Prompt", "    Default (implicit)           Any   Any                     Allow"].forEach(function (l, i) {
+        s += '<rect x="111" y="' + (158 + i * 30) + '" width="722" height="30" fill="' + (i === 0 ? "#fafbfc" : i % 2 ? "#fff" : "#fbfcfd") + '"/>' + T(122, 177 + i * 30, l, { fs: 10, c: i === 0 ? C.muted : C.ink });
+      });
+      s += N(1, 330, 14, null, "① 上部タブ：Monitoring・Network・Access・Security・Administration を切り替えます。") + N(2, 70, 100, null, "② 左メニュー：タブの中の画面を選びます。緑の線が今いる画面。") + N(3, 104, 46, null, "③ パンくず：今どこにいるか。Accounts で上位へ戻ります。") +
+        N(4, 690, 140, null, "④ 操作ボタン：New（追加）→ Save（保存）→ Publish（反映）。") + N(5, 470, 230, null, "⑤ 一覧：上から順に評価されるルール。行をクリックすると右に編集パネルが開きます。") + N(6, 610, 14, null, "⑥ 操作要領と ?：手順書と、画面の見方の再表示。");
+      return svg(860, 350, s, "画面の構成");
+    },
+    publish: function () {
+      let s = "";
+      const st = [["編集中", "Apply した直後", C.osoft, C.orange, "黄：未保存の変更あり"], ["未公開リビジョン", "Save した後", C.bsoft, C.blue, "青：まだ全社に未反映"], ["公開中", "Publish した後", C.gsoft, C.green, "緑：全社に反映済み"]];
+      st.forEach(function (p, i) {
+        const x = 30 + i * 280;
+        s += G(["編集中：Apply した直後。帯は黄色。まだ保存されておらず、他の画面に移ると失われます。次は Save。", "未公開リビジョン：Save した後。帯は青。自分だけに見え、触ったルールはロックされます。次は Compare View で確認して Publish。", "公開中：Publish した後。帯は緑。全社の通信に反映済みで、取り消しはできません。"][i], B(x, 30, 220, 92, "", { f: p[2], s: p[3], sw: 2, r: 8 }) + T(x + 110, 64, p[0], { a: "middle", fs: 16, b: true, c: p[3] }) + T(x + 110, 88, p[1], { a: "middle", fs: 12, c: C.muted }));
+        s += B(x, 132, 220, 22, p[4], { f: p[2], s: p[2], fs: 11, c: p[3], r: 3 });
+        if (i < 2) s += A(x + 222, 76, x + 278, 76, { c: C.ink, w: 2, t: i === 0 ? "Save" : "Publish", tc: C.ink, fs: 13 });
+      });
+      s += B(30, 6, 64, 20, "Apply", { f: "#fff", s: C.ink, fs: 11 }) + A(62, 26, 62, 30, { c: C.ink });
+      // who sees
+      const rows = [["自分", "✓", "✓", "✓"], ["他の管理者", "—", "—（ロックが見える）", "✓"], ["全社の通信", "—", "—", "✓ 反映"]];
+      s += T(30, 190, "誰に見える／効くか", { fs: 12, b: true });
+      rows.forEach(function (r, i) {
+        s += T(30, 214 + i * 22, r[0], { fs: 12, c: C.muted });
+        for (let k = 1; k < 4; k++) s += T(30 + (k - 1) * 280 + 110, 214 + i * 22, r[k], { a: "middle", fs: 12, c: r[k].indexOf("✓") === 0 ? C.green : C.muted, b: r[k].indexOf("✓") === 0 });
+      });
+      s += A(310, 268, 120, 268, { c: C.red, dash: true, t: "Discard（未公開の変更を捨てる）", tc: C.red, dy: 16 });
+      return svg(860, 296, s, "Apply Save Publish の流れ");
+    },
+    order: function () {
+      let s = T(20, 22, "通信が来ると…", { fs: 12, b: true });
+      s += B(20, 34, 120, 40, "通信\nsuzuki → partner-portal", { f: C.ssoft, s: C.slate, fs: 10.5 });
+      const rules = [["1  Block Risky Categories", "一致しない", C.muted], ["2  Block Uncategorized", "一致 → Block で決定", C.red], ["3  Prompt Social Networks", "（見られない）", C.line], ["Default  Any Any Allow", "（見られない）", C.line]];
+      rules.forEach(function (r, i) {
+        const y = 92 + i * 52;
+        const hit = i === 1;
+        s += B(170, y, 220, 38, r[0], { f: hit ? C.rsoft : "#fff", s: hit ? C.red : C.line, sw: hit ? 2 : 1.2, fs: 11.5, b: hit });
+        s += T(400, y + 23, r[1], { fs: 11, c: r[2], b: hit });
+      });
+      s += A(80, 74, 80, 111) + A(80, 111, 168, 111) + A(280, 130, 280, 144, { c: C.muted, t: "次へ", dx: 18, dy: 4 });
+      s += '<path d="M500 30 v270" stroke="' + C.line + '" stroke-dasharray="4 4"/>';
+      s += T(530, 22, "一番下の既定ルールの違い", { fs: 12, b: true });
+      s += G("Internet Firewall の既定は Allow。危険なものを Block で書き足していきます（ブラックリスト型）。", B(530, 40, 310, 110, "", { f: C.gsoft, s: C.green, r: 8 }) + T(548, 66, "Internet Firewall", { fs: 13, b: true }) + T(548, 90, "既定：Any Any → Allow（許可）", { fs: 12, c: C.green, b: true }) + T(548, 114, "止めたいものを書く（ブラックリスト型）", { fs: 11.5 }) + T(548, 134, "例：危険カテゴリを Block", { fs: 11, c: C.muted }));
+      s += G("WAN Firewall と Client Connectivity の既定は Block。必要な通信だけを Allow で書き足します（ホワイトリスト型）。", B(530, 166, 310, 110, "", { f: C.rsoft, s: C.red, r: 8 }) + T(548, 192, "WAN Firewall / Client Connectivity", { fs: 13, b: true }) + T(548, 216, "既定：Any Any → Block（遮断）", { fs: 12, c: C.red, b: true }) + T(548, 240, "通したいものを書く（ホワイトリスト型）", { fs: 11.5 }) + T(548, 260, "例：営業所 → ファイルサーバ（SMB）を Allow", { fs: 11, c: C.muted }));
+      return svg(860, 310, s, "ルールの評価順");
+    },
+    site: function () {
+      let s = B(20, 10, 330, 300, "", { f: "#fff", r: 6 }) + '<rect x="20" y="10" width="330" height="30" rx="6" fill="#fafbfc" stroke="' + C.line + '"/>' + T(34, 30, "Add Site", { fs: 13, b: true }) + T(336, 30, "×", { a: "end", fs: 14, c: C.muted });
+      const f = [["Site Name", "JP-NGO-BR02"], ["Connection Type", "Socket X1600 ▾"], ["Country / City / Time Zone", "Japan / Nagoya / Asia/Tokyo"], ["WAN1 Down / Up (Mbps)", "100 / 100   □ Enable WAN2"], ["Native Range", "10.30.0.0/24"], ["License", "Japan - 100 Mbps ▾"]];
+      f.forEach(function (it, i) {
+        const y = 52 + i * 40;
+        s += G(["① Site Name：命名規則（国-都市-拠点）で統一。", "② Connection Type：Socket の型番・vSocket・IPsec。作成後は変更できません。", "③ Country / City / Time Zone：最寄り PoP とメンテナンス時間帯に影響。", "④ WAN 帯域：ライセンスに合わせる。2本目の回線は Enable WAN2。", "⑤ Native Range：拠点 LAN のサブネット。他拠点と重複させない。", "⑥ License：地域・帯域に合ったライセンス。最後に Apply。"][i], T(36, y + 4, it[0], { fs: 9.5, c: C.muted }) + B(36, y + 9, 280, 20, "", { r: 3 }) + T(44, y + 23, it[1], { fs: 10.5 }) + N(i + 1, 330, y + 19));
+      });
+      s += B(214, 290 - 4, 50, 20, "Cancel", { fs: 10 }) + B(270, 286, 60, 20, "Apply", { f: C.green, s: C.green, c: "#fff", fs: 10 });
+      // zero touch
+      s += T(400, 28, "ゼロタッチ導入の流れ", { fs: 12, b: true });
+      s += B(400, 46, 130, 54, "① 管理画面で\nサイトを作成", { f: C.gsoft, s: C.green, fs: 11.5 }) + B(400, 136, 130, 54, "② Socket を発送\n（シリアルを紐づけ）", { f: C.ssoft, s: C.slate, fs: 11.5 }) + B(400, 226, 130, 64, "③ 現地：回線とLANを\nつないで電源ON\n（専門知識不要）", { f: C.osoft, s: C.orange, fs: 11 });
+      s += A(465, 100, 465, 134) + A(465, 190, 465, 224);
+      s += B(640, 210, 200, 80, "", { f: "#fff", s: C.green, r: 8 }) + '<circle cx="740" cy="250" r="26" fill="none" stroke="' + C.green + '" stroke-width="10"/>' + T(740, 304, "PoP（Cato Cloud）", { a: "middle", fs: 11, c: C.green });
+      s += A(532, 258, 636, 252, { c: C.green, w: 2, t: "④ 自動で接続・設定取得", tc: C.green, dy: -10 });
+      s += B(620, 60, 220, 100, "⑤ 確認\nTopology に緑で表示\nSnapshot で Link Up・RTT\n疎通テスト（Web・社内・DNS）", { f: "#fff", s: C.line, fs: 11 });
+      s += A(740, 206, 740, 162, { c: C.green });
+      return svg(860, 320, s, "Add Site とゼロタッチ導入");
+    },
+    monitor: function () {
+      let s = "";
+      const st = [["Topology", "赤い拠点がないか\n（毎朝）"], ["Snapshot", "Link Status / RTT\nRecent Connections"], ["Network Analytics", "24時間の推移\nロス・遅延・ジッタ"]];
+      st.forEach(function (p, i) { const x = 20 + i * 200; s += B(x, 20, 170, 70, p[0] + "\n" + p[1], { f: i ? "#fff" : C.gsoft, s: i ? C.line : C.green, fs: 11.5 }); if (i < 2) s += A(x + 172, 55, x + 198, 55, { c: C.green }); });
+      // chart
+      const gx = 640, gy = 20, gw = 200, gh = 130;
+      s += B(gx - 30, gy - 6, gw + 40, gh + 44, "", { f: "#fff" }) + T(gx - 20, gy + 10, "Packet Loss（例）", { fs: 11, b: true });
+      let d = "M", d2 = "M";
+      for (let i = 0; i <= 24; i++) { const x = gx + (i / 24) * gw; const v = i === 14 ? 70 : i === 13 || i === 15 ? 30 : 8 + (i * 7) % 9; d += (i ? "L" : "") + x + "," + (gy + gh - v); d2 += (i ? "L" : "") + x + "," + (gy + gh - (i === 14 ? 92 : v * 1.3)); }
+      s += '<path d="' + d2 + '" fill="none" stroke="' + C.orange + '" stroke-width="1.6"/><path d="' + d + '" fill="none" stroke="' + C.red + '" stroke-width="1.6"/>' + '<line x1="' + gx + '" x2="' + (gx + gw) + '" y1="' + (gy + gh) + '" y2="' + (gy + gh) + '" stroke="' + C.line + '"/>';
+      s += T(gx + (14 / 24) * gw + 8, gy + 40, "14時に急増", { fs: 10.5, c: C.red, b: true });
+      s += T(gx - 20, gy + gh + 30, "赤：トンネル内  橙：ラストマイル（ISP側）", { fs: 9.5, c: C.muted });
+      // reading table
+      const rows = [["スループットが契約帯域に張り付く", "帯域不足 → 増速 or 大容量通信の優先度を下げる"], ["ラストマイルのロスも高い", "回線事業者側の品質低下を疑う"], ["ジッタが大きい", "Web会議・電話が途切れる → QoS の見直し"], ["Connected の時間が短い", "頻繁に切れている → Recent Connections を確認"]];
+      s += T(20, 124, "グラフの読み方", { fs: 12, b: true });
+      rows.forEach(function (r, i) { const y = 136 + i * 32; s += B(20, y, 230, 26, r[0], { f: C.ssoft, s: C.ssoft, fs: 10.5 }) + A(252, y + 13, 272, y + 13) + T(278, y + 17, r[1], { fs: 11 }); });
+      return svg(860, 270, s, "拠点の監視");
+    },
+    nat: function () {
+      let s = "";
+      [0, 1].forEach(function (k) {
+        const y = 20 + k * 130, ok = k === 1;
+        s += B(20, y + 20, 110, 50, "社員の PC\n（拠点 / 在宅）", { f: C.ssoft, s: C.slate, fs: 11 });
+        s += '<circle cx="270" cy="' + (y + 45) + '" r="30" fill="none" stroke="' + C.green + '" stroke-width="10"/>' + T(270, y + 92, "PoP（Tokyo）", { a: "middle", fs: 10.5, c: C.green });
+        s += A(132, y + 45, 236, y + 45, { c: C.slate });
+        s += B(390, y + 18, 170, 54, ok ? "送信元：Allocated IP\n203.0.113.212（自社専用）" : "送信元：PoP の共有IP\n（他社と共有・変わることがある）", { f: ok ? C.gsoft : C.rsoft, s: ok ? C.green : C.red, fs: 10.5 });
+        s += A(304, y + 45, 388, y + 45, { c: ok ? C.green : C.red });
+        s += B(640, y + 12, 190, 66, "取引先ポータル / SaaS\n許可リスト：203.0.113.212", { f: "#fff", s: C.line, fs: 11 });
+        s += A(562, y + 45, 638, y + 45, { c: ok ? C.green : C.red, w: 2 });
+        s += T(600, y + 102, ok ? "✓ 許可される" : "✕ 拒否される（ログインできない）", { a: "middle", fs: 12, c: ok ? C.green : C.red, b: true });
+      });
+      s += T(150, 152, "Network Rule：Route/NAT = NAT（Allocated IP を指定）", { fs: 11, c: C.green, b: true });
+      return svg(860, 280, s, "Allocated IP と NAT");
+    },
+    qos: function () {
+      let s = T(20, 22, "回線が混雑したとき、送り出す順番", { fs: 12, b: true });
+      const q = [["p10", "Teams / Zoom（Web会議）", C.green], ["p20", "業務アプリ（ERP など）", C.slate], ["p30", "Microsoft 365 / 一般 Web", C.slate], ["p200", "バックアップ・大容量転送", C.muted], ["p255", "優先度を指定していないルール", C.line]];
+      q.forEach(function (r, i) {
+        const y = 36 + i * 42;
+        s += B(20, y, 64, 32, r[0], { f: i ? "#fff" : C.green, s: r[2], c: i ? C.ink : "#fff", fs: 13, b: true }) + B(92, y, 300, 32, r[1], { f: "#fff", s: r[2], fs: 12 });
+        const len = 360 - i * 62;
+        s += '<rect x="420" y="' + (y + 6) + '" width="' + Math.max(20, len) + '" height="20" rx="3" fill="' + r[2] + '" opacity="' + (i ? 0.45 : 0.9) + '"/>';
+      });
+      s += T(420, 260, "← 先に流れる　　　　　　　　　　　後回し →", { fs: 11, c: C.muted });
+      s += A(806, 50, 806, 236, { c: C.muted, t: "", dx: 0 }) + T(816, 150, "数字が\n大きいほど\n後回し", { fs: 10.5, c: C.muted });
+      return svg(860, 272, s, "優先度");
+    },
+    tls: function () {
+      let s = "";
+      s += B(20, 40, 120, 60, "PC\n＋ルート証明書", { f: C.ssoft, s: C.slate, fs: 11.5 });
+      s += G("PoP：ここで復号・検査・再暗号化をまとめて行います。", B(250, 20, 340, 100, "", { f: C.gsoft, s: C.green, r: 10 }) + T(420, 40, "PoP", { a: "middle", fs: 12, b: true, c: C.green }));
+      [["復号", 268], ["検査\nIPS・マルウェア・DLP", 362], ["再暗号化", 496]].forEach(function (b, i) { s += B(b[1], 52, i === 1 ? 120 : 76, 52, b[0], { f: "#fff", s: C.green, fs: 11 }); });
+      s += A(344, 78, 360, 78, { c: C.green }) + A(482, 78, 494, 78, { c: C.green });
+      s += B(700, 40, 140, 60, "Web サイト\n（HTTPS）", { fs: 11.5 });
+      s += A(142, 70, 248, 70, { c: C.slate, t: "暗号化", tc: C.muted }) + A(592, 70, 698, 70, { c: C.slate, t: "暗号化", tc: C.muted });
+      // bypass
+      s += B(20, 170, 120, 60, "PC", { f: C.ssoft, s: C.slate, fs: 11.5 });
+      s += G("Bypass ルールに一致した通信は復号せずに通します。中身は検査されません。", B(250, 160, 340, 80, "", { f: C.osoft, s: C.orange, r: 10 }) + T(420, 186, "PoP：Bypass ルールに一致", { a: "middle", fs: 12, b: true, c: "#8a5200" }) + T(420, 210, "復号せずにそのまま通す（中身は検査しない）", { a: "middle", fs: 11, c: "#8a5200" }));
+      s += B(700, 170, 140, 60, "銀行・医療サイト\n証明書ピン留めのアプリ", { fs: 10.5 });
+      s += A(142, 200, 248, 200, { c: C.orange }) + A(592, 200, 698, 200, { c: C.orange });
+      s += T(20, 270, "証明書が入っていない端末 → ブラウザに証明書エラー。入っているのに動かないアプリ → Bypass に追加。", { fs: 11.5, c: C.red, b: true });
+      return svg(860, 284, s, "TLS Inspection");
+    },
+    users: function () {
+      let s = "";
+      s += B(20, 30, 150, 64, "IdP\nEntra ID / Okta", { f: C.ssoft, s: C.slate, fs: 12 });
+      s += A(172, 62, 248, 62, { c: C.slate, t: "SCIM 自動同期", tc: C.slate });
+      s += B(250, 30, 150, 64, "Access > Users\nユーザー＋SDPライセンス", { fs: 11 });
+      s += A(402, 62, 478, 62, { c: C.slate, t: "Cato Client で接続", tc: C.slate });
+      s += B(480, 18, 170, 88, "Client Connectivity\nPolicy\n上から順に判定", { f: C.gsoft, s: C.green, fs: 11.5 });
+      const out = [["端末の条件を満たす\n（会社PC・AV稼働）", "Allow WAN and Internet", C.green, C.gsoft], ["条件を満たさない\n（私物・AV停止）", "Allow Internet only", C.orange, C.osoft], ["どのルールにも\n一致しない", "Block（既定ルール）", C.red, C.rsoft]];
+      out.forEach(function (o, i) {
+        const y = 130 + i * 52;
+        s += A(565, 108, 565 + (i - 1) * 0, y - 2, { c: C.line });
+        s += T(400, y + 18, o[0], { fs: 10.5, c: C.muted, a: "end", mid: true });
+        s += B(470, y, 190, 40, o[1], { f: o[3], s: o[2], c: o[2], b: true, fs: 11.5 });
+      });
+      s += B(690, 130, 150, 144, "ポイント\n・SDPライセンスが\n　ないと接続不可\n・退職者は IdP 側で\n　無効化する\n・Device Check は\n　Windows/macOS", { f: "#fff", s: C.line, fs: 10.5 });
+      return svg(860, 290, s, "ユーザーと接続");
+    },
+    events: function () {
+      let s = "";
+      const st = [["① 期間を絞る", "問題の時刻の前後\n（既定は Last 2 Days）"], ["② ＋ / − で絞り込む", "User = suzuki\nAction = Block"], ["③ 行を開いて確認", "Rule = Block Uncategorized\nDestination = partner-portal"]];
+      st.forEach(function (p, i) {
+        const x = 20 + i * 285;
+        s += G(["① 期間：問題が起きた時刻の前後に絞ると、関係のないイベントが減ります。", "② 左の FIELDS で値の［+］（含める）/［−］（除外）を押して絞り込みます。", "③ 行をクリックして展開。Rule 欄で、どのルールに止められたかが分かります。"][i], B(x, 20, 250, 110, "", { f: "#fff", s: i === 2 ? C.red : C.green, sw: 2, r: 8 }) + T(x + 16, 46, p[0], { fs: 13, b: true, c: i === 2 ? C.red : C.green }) + T(x + 16, 74, p[1], { fs: 11.5 }));
+        if (i < 2) s += A(x + 252, 75, x + 283, 75, { c: C.green, w: 2 });
+      });
+      s += B(20, 150, 820, 70, "", { f: C.gsoft, s: C.green, r: 8 }) + T(40, 176, "わかったこと：「Block Uncategorized」ルールに止められている", { fs: 13, b: true, c: C.green }) +
+        T(40, 202, "→ 業務で必要なら承認を得て、Internet Firewall でそのルールより「上」に、対象を絞った Allow ルールを追加（Save → Publish）", { fs: 11.5 });
+      return svg(860, 232, s, "Events の調べ方");
+    },
+    trouble: function () {
+      let s = "";
+      const q = [["他の拠点も落ちている？", "Cato 側・広域障害の可能性\n→ 障害情報を確認・サポートへ"], ["Snapshot：全回線 Down？", "現地の電源・ケーブル・ONU\n回線事業者の障害を確認"], ["一部の回線だけ Down？", "冗長回線で継続中\n→ 回線事業者へ連絡"], ["vSocket（クラウド）？", "インスタンス停止・SG・\nルートテーブルを確認"], ["管理画面から見えない？", "現地LANから Socket WebUI で\nWAN の IP 取得を確認"]];
+      q.forEach(function (r, i) {
+        const y = 14 + i * 64;
+        s += G(["Monitoring > Topology で、他の拠点の状態を確認します。", "Network > Sites > {拠点} > Snapshot の Link Status を確認します。", "Snapshot で、回線ごとの Up / Down を確認します。", "Connection Type が vSocket（AWS / Azure など）かを確認します。", "Snapshot に何も表示されない、更新されない状態か確認します。"][i], '<polygon points="' + 230 + "," + y + " " + 420 + "," + (y + 24) + " " + 230 + "," + (y + 48) + " " + 40 + "," + (y + 24) + '" fill="#fff" stroke="' + C.slate + '" stroke-width="1.5"/>' + T(230, y + 28, r[0], { a: "middle", fs: 11.5, b: true }));
+        s += A(422, y + 24, 520, y + 24, { c: C.red, t: "はい", tc: C.red });
+        s += B(522, y + 2, 300, 44, r[1], { f: C.rsoft, s: C.red, fs: 11 });
+        if (i < 4) s += A(230, y + 48, 230, y + 62, { c: C.muted }) + T(240, y + 59, "いいえ", { fs: 10, c: C.muted });
+      });
+      s += T(40, 345, "解決しない場合：サイト名・発生時刻・確認結果（スクリーンショット）を添えてサポートに連絡", { fs: 11.5, c: C.ink, b: true });
+      return svg(860, 356, s, "切り分けフロー");
+    },
+    admin: function () {
+      let s = "";
+      const st = [["New", "Email・Role を入力"], ["Invited", "招待メール送信"], ["Active", "本人が有効化\n＋MFA 設定"], ["棚卸し", "四半期ごと\n退職時は即削除"]];
+      st.forEach(function (p, i) {
+        const x = 20 + i * 150;
+        s += B(x, 30, 120, 70, p[0] + "\n" + p[1], { f: i === 2 ? C.gsoft : "#fff", s: i === 2 ? C.green : C.line, fs: 11 });
+        if (i < 3) s += A(x + 122, 65, x + 148, 65, { c: C.green });
+      });
+      s += B(320, 124, 120, 34, "Reset MFA", { f: C.osoft, s: C.orange, fs: 11 }) + A(380, 102, 380, 122, { c: C.orange }) + T(450, 146, "端末の紛失・機種変更時", { fs: 10.5, c: C.muted });
+      s += G("Monitoring > Audit Trail：誰が・いつ・どの画面で・何をしたかが記録されます。障害時は最初に確認します。", B(630, 20, 210, 150, "", { f: "#fff", s: C.slate, r: 8 }) + T(646, 44, "Audit Trail", { fs: 13, b: true }) + T(646, 68, "誰が：yamada.admin", { fs: 11 }) + T(646, 88, "いつ：10/22 09:12", { fs: 11 }) + T(646, 108, "どこ：Internet Firewall", { fs: 11 }) + T(646, 128, "何を：Publish Revision #4", { fs: 11 }) + T(646, 154, "障害時は最初にここを見る", { fs: 11, c: C.red, b: true }));
+      s += T(20, 196, "ロール：Editor ＝ 変更できる ／ Viewer ＝ 見るだけ（Events の CSV 出力は Editor が必要）", { fs: 11.5 });
+      return svg(860, 210, s, "管理者");
+    }
+  };
+  document.querySelectorAll("[data-fig]").forEach(function (el) {
+    const fig = el.closest("figure");
+    if (fig && FIGTIP[el.dataset.fig]) fig.dataset.tip = "【この図について】" + FIGTIP[el.dataset.fig];
+    el.outerHTML = FIG[el.dataset.fig]();
+  });
+
+  /* ---------- 目次 ---------- */
+  const secs = Array.from(document.querySelectorAll(".sec"));
+  document.getElementById("toc").innerHTML = secs.map(function (s, i) {
+    return '<li><a href="#' + s.id + '" class="' + (i === 0 ? "must-link" : "") + '"><span>' + String(i).padStart(2, "0") + "</span>" + App.esc(s.dataset.toc) + "</a></li>";
+  }).join("");
+  const links = Array.from(document.querySelectorAll(".toc a"));
+  const obs = "IntersectionObserver" in window ? new IntersectionObserver(function (ents) {
+    ents.forEach(function (e) { if (e.isIntersecting) links.forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id); }); });
+  }, { rootMargin: "-80px 0px -60% 0px" }) : null;
+  if (obs) secs.forEach(function (s) { obs.observe(s); });
+  if (location.hash) { const t = document.querySelector(location.hash); if (t) setTimeout(function () { t.scrollIntoView(); }, 50); }
+})();
+</script>
+
+</body>
+</html>

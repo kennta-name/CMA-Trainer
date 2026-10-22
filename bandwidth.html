@@ -3,45 +3,70 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Audit Trail | CMA Trainer</title>
+<title>Bandwidth Management | CMA Trainer</title>
 <meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body data-tab="monitoring" data-page="audit-trail" data-crumb="Audit Trail">
+<body data-tab="network" data-page="bandwidth" data-crumb="Bandwidth Management">
 <main class="main" id="main">
-  <div class="page-title"><h1>Audit Trail</h1><span class="muted">管理者の操作履歴（誰が・いつ・何を変えたか）</span></div>
-  <div class="tip"><span>障害が起きたら、まず「直前に誰かが設定を変えていないか」をここで確認する習慣をつけましょう。実機では過去12か月分を、1回に最大3か月まで表示できます。</span></div>
+  <div class="page-title"><h1>Bandwidth Management</h1><span class="muted">帯域の優先度プロファイル</span></div>
+  <div class="tip"><span>ここで作った Priority を、Network Rules の <b>Bandwidth Priority</b> で通信ごとに割り当てます。数字が小さいほど優先（2〜254、未指定のルールは p255）。変更は［Apply］→［Save］で反映されます。</span></div>
   <div class="card">
-    <div class="pol-bar">
-      <select class="select" id="range" style="width:auto" aria-label="期間"><option value="1">Last 24 Hours</option><option value="7" selected>Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last 3 Months</option></select>
-      <select class="select" id="mod" style="width:auto" aria-label="モジュール"></select>
-      <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search（管理者・操作・対象）" aria-label="検索"></div>
-      <label class="check" style="margin-left:auto"><input type="checkbox" id="mine">自分の操作のみ</label>
-    </div>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Time</th><th>Admin</th><th>Module</th><th>Action</th><th>Object</th><th>Details</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="pol-bar"><div class="btn-group" style="margin-left:auto"><button class="btn btn-primary" id="new" type="button">＋ New</button><button class="btn" id="save" type="button" disabled>Save</button></div></div>
+    <div class="status-banner pub" id="banner"></div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Priority</th><th>Name</th><th>Limits</th><th>Upload Limit</th><th>Download Limit</th></tr></thead><tbody id="rows"></tbody></table></div>
   </div>
 </main>
 <script src="assets/app.js"></script>
 <script>
 (function () {
-  const list = App.db.get("audit", App.seedAudit);
-  if (list.some(function (a) { return a.mine; })) App.complete("audit_check");
-  else setTimeout(function () { App.toast("まだ自分の操作がありません。何か設定を変更してから、もう一度開いてみましょう。", "warn", 6000); }, 500);
-  const mods = Array.from(new Set(list.map(function (a) { return a.module; })));
+  let list = App.db.get("bw", [
+    { priority: 10, name: "Voice / Web会議", limits: "No Limit", upl: "", dl: "" },
+    { priority: 20, name: "業務アプリ", limits: "No Limit", upl: "", dl: "" },
+    { priority: 30, name: "一般Web / SaaS", limits: "No Limit", upl: "", dl: "" },
+    { priority: 200, name: "バックアップ・大容量転送", limits: "Limit only when line is congested", upl: "30%", dl: "30%" }
+  ]);
+  let dirty = false;
   function draw() {
-    const days = +document.getElementById("range").value, mod = document.getElementById("mod").value, q = document.getElementById("q").value.trim().toLowerCase(), mine = document.getElementById("mine").checked;
-    const rows = list.filter(function (a) { return Date.now() - a.t <= days * 864e5 && (!mod || a.module === mod) && (!mine || a.mine) && (!q || (a.admin + a.module + a.action + a.object + a.detail).toLowerCase().includes(q)); });
-    document.getElementById("rows").innerHTML = rows.length ? rows.map(function (a) {
-      return "<tr" + (a.mine ? ' class="new-row"' : "") + '><td class="num">' + App.fmt(a.t) + "</td><td>" + App.esc(a.admin) + "</td><td>" + App.esc(a.module) + "</td><td>" + '<span class="badge ' + ({ Publish: "b-ok", Create: "b-ok", Delete: "b-ng", Save: "b-warn" }[a.action] || "b-info") + '">' + App.esc(a.action) + "</span>" + "</td><td>" + App.esc(a.object) + '</td><td style="max-width:380px">' + App.esc(a.detail) + "</td></tr>";
-    }).join("") : '<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">条件に合う操作履歴がありません</td></tr>';
+    list.sort(function (a, b) { return a.priority - b.priority; });
+    document.getElementById("save").disabled = !dirty;
+    const bn = document.getElementById("banner");
+    bn.className = "status-banner " + (dirty ? "dirty" : "pub");
+    bn.innerHTML = dirty ? "<b>未保存の変更があります。</b>［Save］で反映します。" : "保存済みのプロファイルを表示しています。";
+    document.getElementById("rows").innerHTML = list.map(function (b, i) {
+      return '<tr class="clickable" data-i="' + i + '"><td class="mono">p' + b.priority + "</td><td>" + App.esc(b.name) + "</td><td>" + App.esc(b.limits) + "</td><td>" + (App.esc(b.upl) || '<span class="muted">—</span>') + "</td><td>" + (App.esc(b.dl) || '<span class="muted">—</span>') + "</td></tr>";
+    }).join("") + '<tr class="locked"><td class="mono">p255</td><td>Default（未指定のルール）</td><td>No Limit</td><td>—</td><td>—</td></tr>';
+    document.querySelectorAll("#rows tr[data-i]").forEach(function (tr) { tr.onclick = function () { open(+tr.dataset.i); }; });
+  }
+  function open(i) {
+    const isNew = i === -1;
+    App.panel({
+      title: isNew ? "Add Bandwidth Profile" : "Edit Bandwidth",
+      model: isNew ? { priority: 40, name: "", limits: "No Limit", upl: "", dl: "" } : App.clone(list[i]),
+      sections: [{ title: "Profile", open: true, fields: [
+        { key: "priority", label: "Priority（2〜254）", type: "number", req: true },
+        { key: "name", label: "Name（メモ）" },
+        { key: "limits", label: "Limits", type: "select", options: ["No Limit", "Always Limit", "Limit only when line is congested"], rerender: true },
+        { key: "upl", label: "Upload Limit（% または Mbps）", placeholder: "例：30% / 20Mbps", showIf: function (m) { return m.limits !== "No Limit"; } },
+        { key: "dl", label: "Download Limit（% または Mbps）", placeholder: "例：30% / 50Mbps", showIf: function (m) { return m.limits !== "No Limit"; } }
+      ] }],
+      onApply: function (m) {
+        m.priority = Math.round(+m.priority);
+        if (!(m.priority >= 2 && m.priority <= 254)) { App.toast("Priority は 2〜254 の範囲で入力します。", "ng"); return false; }
+        if (list.some(function (b, k) { return b.priority === m.priority && k !== i; })) { App.toast("その Priority は既に使われています。", "ng"); return false; }
+        if (m.limits === "No Limit") { m.upl = ""; m.dl = ""; }
+        if (isNew) list.push(m); else list[i] = m;
+        dirty = true; draw(); App.toast("適用しました。［Save］で反映します。", "warn");
+      },
+      onDelete: isNew ? null : function () { list.splice(i, 1); App.closePanel(); dirty = true; draw(); }
+    });
   }
   document.addEventListener("DOMContentLoaded", function () {
-    document.getElementById("mod").innerHTML = '<option value="">All Modules</option>' + mods.map(function (m) { return "<option>" + App.esc(m) + "</option>"; }).join("");
-    ["range", "mod", "mine"].forEach(function (id) { document.getElementById(id).addEventListener("change", draw); });
-    document.getElementById("q").addEventListener("input", draw);
     draw();
+    document.getElementById("new").onclick = function () { open(-1); };
+    document.getElementById("save").onclick = function () { App.db.set("bw", list); dirty = false; App.audit("Bandwidth Management", "Save", "Profiles", list.length + " profiles"); App.toast("保存しました。", "ok"); draw(); };
   });
 })();
 </script>

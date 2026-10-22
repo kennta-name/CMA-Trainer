@@ -3,101 +3,45 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Administrators | CMA Trainer</title>
+<title>Audit Trail | CMA Trainer</title>
 <meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body data-tab="administration" data-page="administrators" data-crumb="Administrators">
+<body data-tab="monitoring" data-page="audit-trail" data-crumb="Audit Trail">
 <main class="main" id="main">
-  <div class="page-title"><h1>Administrators</h1><span class="muted" id="cnt"></span></div>
-  <div class="tip"><span><b>運用ルール：</b>管理者は<b>1人1アカウント</b>（共有すると Audit Trail で誰の操作か追えません）。閲覧だけの人には編集権限を与えない。退職・異動時は当日中に削除し、四半期ごとに棚卸しします。<br>研修版では、［New］の入力欄に何を入れても（空欄でも）追加できます。</span></div>
+  <div class="page-title"><h1>Audit Trail</h1><span class="muted">管理者の操作履歴（誰が・いつ・何を変えたか）</span></div>
+  <div class="tip"><span>障害が起きたら、まず「直前に誰かが設定を変えていないか」をここで確認する習慣をつけましょう。実機では過去12か月分を、1回に最大3か月まで表示できます。</span></div>
   <div class="card">
     <div class="pol-bar">
-      <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search administrators" aria-label="管理者を検索"></div>
-      <div class="btn-group" style="margin-left:auto"><button class="btn" id="actions" type="button" disabled>Actions ▾</button><button class="btn btn-primary" id="new" type="button">＋ New</button></div>
+      <select class="select" id="range" style="width:auto" aria-label="期間"><option value="1">Last 24 Hours</option><option value="7" selected>Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last 3 Months</option></select>
+      <select class="select" id="mod" style="width:auto" aria-label="モジュール"></select>
+      <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search（管理者・操作・対象）" aria-label="検索"></div>
+      <label class="check" style="margin-left:auto"><input type="checkbox" id="mine">自分の操作のみ</label>
     </div>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:36px"></th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>MFA</th><th>Password Expiry</th><th>Last Login</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Time</th><th>Admin</th><th>Module</th><th>Action</th><th>Object</th><th>Details</th></tr></thead><tbody id="rows"></tbody></table></div>
   </div>
 </main>
 <script src="assets/app.js"></script>
 <script>
 (function () {
-  const ROLES = ["Editor", "Viewer", "Security Editor（カスタム例）", "Network Viewer（カスタム例）"];
-  let admins = App.db.get("admins", function () {
-    const me = App.trainee(); const d = 864e5;
-    return [
-      { id: "a1", first: "健", last: "山田", email: "yamada.admin@example.co.jp", role: "Editor", status: "Active", mfa: "Enabled", noExpire: false, lastLogin: Date.now() - 0.3 * d },
-      { id: "a2", first: "Operator", last: "MSP", email: "msp-operator@partner.example", role: "Editor", status: "Active", mfa: "Enabled", noExpire: false, lastLogin: Date.now() - 2 * d },
-      { id: "a3", first: me.name, last: "", email: me.email, role: "Editor", status: "Active", mfa: "Enabled", noExpire: false, lastLogin: Date.now(), me: true }
-    ];
-  });
-  let sel = null, flash = null;
-  function persist() { App.db.set("admins", admins); }
+  const list = App.db.get("audit", App.seedAudit);
+  if (list.some(function (a) { return a.mine; })) App.complete("audit_check");
+  else setTimeout(function () { App.toast("まだ自分の操作がありません。何か設定を変更してから、もう一度開いてみましょう。", "warn", 6000); }, 500);
+  const mods = Array.from(new Set(list.map(function (a) { return a.module; })));
   function draw() {
-    const q = document.getElementById("q").value.trim().toLowerCase();
-    document.getElementById("cnt").textContent = admins.length + " administrators";
-    document.getElementById("actions").disabled = !sel;
-    document.getElementById("rows").innerHTML = admins.filter(function (a) { return !q || (a.last + a.first + a.email + a.role).toLowerCase().includes(q); }).map(function (a) {
-      return '<tr class="clickable ' + (a.id === flash ? "flash" : "") + '" data-id="' + a.id + '"><td><input type="radio" name="sel" aria-label="選択" ' + (a.id === sel ? "checked" : "") + ' style="accent-color:var(--brand)"></td><td>' + App.esc((a.last + " " + a.first).trim() || "（未入力）") + (a.me ? ' <span class="badge b-gray">You</span>' : "") + "</td><td>" + App.esc(a.email || "（未入力）") + "</td><td>" + App.esc(a.role) + "</td><td>" +
-        (a.status === "Active" ? '<span class="badge b-ok">Active</span>' : '<span class="badge b-warn">' + App.esc(a.status) + "</span>") + "</td><td>" + App.esc(a.mfa) + "</td><td>" + (a.noExpire ? "Never" : "90 days") + '</td><td class="num">' + (a.lastLogin ? App.fmtShort(a.lastLogin) : "—") + "</td></tr>";
-    }).join("");
-    flash = null;
-    document.querySelectorAll("#rows tr").forEach(function (tr) {
-      tr.onclick = function (e) { sel = tr.dataset.id; if (e.target.type !== "radio") edit(sel); draw(); };
-    });
-  }
-  function form(model, isNew) {
-    return {
-      title: isNew ? "Create Administrator" : "Edit Administrator",
-      model: model,
-      sections: [
-        { title: "General", open: true, fields: [
-          { key: "first", label: "First name", placeholder: "例：太郎" },
-          { key: "last", label: "Last name", placeholder: "例：研修" },
-          { key: "email", label: "Email（CMA のログインID になります）", placeholder: "例：new.admin@example.co.jp" }
-        ], summary: function (m) { return m.email || ""; } },
-        { title: "Role", open: true, fields: [
-          { key: "role", label: "Role", type: "select", options: ROLES, help: "Editor＝変更可、Viewer＝閲覧のみ。Events の CSV エクスポートには Editor 権限が必要です。" }
-        ], summary: function (m) { return m.role; } },
-        { title: "Password", fields: [
-          { key: "noExpire", label: "Password never expires（通常はオフ）", type: "check" }
-        ], summary: function (m) { return m.noExpire ? "Never expires" : "Policy"; } }
-      ]
-    };
-  }
-  function edit(id) {
-    const a = admins.find(function (x) { return x.id === id; });
-    const f = form(App.clone(a), false);
-    f.onApply = function (m) { Object.assign(a, { first: m.first, last: m.last, email: m.email, role: m.role, noExpire: m.noExpire }); persist(); App.audit("Administrators", "Update", a.email || "(no email)", "Role: " + a.role); flash = a.id; draw(); App.toast("管理者情報を更新しました。", "ok"); };
-    f.onDelete = a.me ? null : function () { admins = admins.filter(function (x) { return x.id !== a.id; }); sel = null; persist(); App.audit("Administrators", "Delete", a.email || "(no email)", ""); App.closePanel(); draw(); App.toast("管理者を削除しました。", "ok"); };
-    App.panel(f);
+    const days = +document.getElementById("range").value, mod = document.getElementById("mod").value, q = document.getElementById("q").value.trim().toLowerCase(), mine = document.getElementById("mine").checked;
+    const rows = list.filter(function (a) { return Date.now() - a.t <= days * 864e5 && (!mod || a.module === mod) && (!mine || a.mine) && (!q || (a.admin + a.module + a.action + a.object + a.detail).toLowerCase().includes(q)); });
+    document.getElementById("rows").innerHTML = rows.length ? rows.map(function (a) {
+      return "<tr" + (a.mine ? ' class="new-row"' : "") + '><td class="num">' + App.fmt(a.t) + "</td><td>" + App.esc(a.admin) + "</td><td>" + App.esc(a.module) + "</td><td>" + '<span class="badge ' + ({ Publish: "b-ok", Create: "b-ok", Delete: "b-ng", Save: "b-warn" }[a.action] || "b-info") + '">' + App.esc(a.action) + "</span>" + "</td><td>" + App.esc(a.object) + '</td><td style="max-width:380px">' + App.esc(a.detail) + "</td></tr>";
+    }).join("") : '<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">条件に合う操作履歴がありません</td></tr>';
   }
   document.addEventListener("DOMContentLoaded", function () {
-    draw();
+    document.getElementById("mod").innerHTML = '<option value="">All Modules</option>' + mods.map(function (m) { return "<option>" + App.esc(m) + "</option>"; }).join("");
+    ["range", "mod", "mine"].forEach(function (id) { document.getElementById(id).addEventListener("change", draw); });
     document.getElementById("q").addEventListener("input", draw);
-    document.getElementById("new").onclick = function () {
-      const f = form({ first: "", last: "", email: "", role: "Viewer", noExpire: false }, true);
-      // 研修版：入力チェックは行わず、何を入れても次へ進む
-      f.onApply = function (m) {
-        const na = { id: App.uid(), first: m.first, last: m.last, email: m.email, role: m.role, status: "Invited", mfa: "Pending", noExpire: m.noExpire, lastLogin: null };
-        admins.push(na); sel = na.id; flash = na.id; persist();
-        App.audit("Administrators", "Create", m.email || "(no email)", "Role: " + m.role);
-        App.complete("admin_add");
-        draw();
-        App.toast("管理者を追加しました。招待メールが送信されます（研修のため実際には送信されません）。本人がメールから有効化すると Active になります。", "ok", 7000);
-      };
-      App.panel(f);
-    };
-    document.getElementById("actions").onclick = function (e) {
-      const a = admins.find(function (x) { return x.id === sel; });
-      if (!a) return;
-      App.pop(e.currentTarget, [
-        { label: "Reset MFA", run: function () { App.modal({ title: "Reset MFA", body: App.esc(a.email || "この管理者") + " の MFA をリセットします。本人は次回ログイン時に MFA を再登録します（端末紛失・機種変更時に使用）。", ok: "OK", onOk: function () { a.mfa = "Pending"; persist(); App.audit("Administrators", "Reset MFA", a.email || "(no email)", ""); draw(); App.toast("MFA をリセットしました。本人に再登録を案内してください。", "ok"); } }); } },
-        { label: "Resend Invitation", run: function () { App.toast("招待メールを再送しました（研修のため送信されません）。", "ok"); } }
-      ].concat(a.status === "Invited" ? [{ label: "Activate（研修用：本人の有効化を再現）", run: function () { a.status = "Active"; a.mfa = "Enabled"; a.lastLogin = Date.now(); persist(); draw(); App.toast("有効化されました。", "ok"); } }] : []));
-    };
+    draw();
   });
 })();
 </script>
