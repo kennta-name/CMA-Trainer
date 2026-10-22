@@ -14,8 +14,9 @@
   <div class="page-title"><h1>Users</h1><span class="muted" id="cnt"></span></div>
   <div class="tip"><span><b>おすすめは SCIM 連携：</b>Entra ID / Okta などで社員を追加・無効化すると、ほぼリアルタイムで Cato にも反映されます。<b>退職者対応は IdP 側で無効化</b>するのが原則で、SCIM 由来のユーザーをここで直接消しても、次の同期で戻ってしまいます。リモート接続には SDP ライセンスの割り当てが必要です。</span></div>
   <div class="card">
-    <div class="subtabs" role="tablist"><button role="tab" aria-selected="true" type="button">Users Directory</button><button role="tab" aria-selected="false" type="button" data-na="User Groups">User Groups</button></div>
-    <div class="pol-bar">
+    <div class="subtabs" role="tablist" id="utabs"><button role="tab" aria-selected="true" type="button" data-t="dir" data-tip="ユーザーの一覧">Users Directory</button><button role="tab" aria-selected="false" type="button" data-t="grp" data-tip="IdP から同期されたグループと人数">User Groups</button></div>
+    <div id="grpView" hidden></div>
+    <div class="pol-bar" id="dirBar">
       <div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search users" aria-label="ユーザーを検索"></div>
       <label class="check"><input type="checkbox" id="onlyConn">接続中のみ</label>
       <div class="btn-group" style="margin-left:auto"><a class="btn" href="directory-services.html">Directory Services</a><button class="btn btn-primary" id="new" type="button">＋ New</button></div>
@@ -66,7 +67,23 @@
       }
     });
   }
+  function grp() {
+    const m = {};
+    users.forEach(function (u) { u.groups.forEach(function (g) { (m[g] = m[g] || []).push(u); }); });
+    document.getElementById("grpView").innerHTML = App.table(["Group", "Members", "SDP Licensed", "Origin", "Used in"], Object.keys(m).map(function (g) {
+      const lic = m[g].filter(function (u) { return u.sdp; }).length;
+      const used = { "全社員": "Client Connectivity：Corporate Devices / Mobile Devices", "営業部": "—", "情報システム部": "—", "業務委託": "—", "経理部": "—" }[g] || "—";
+      return { tip: "【" + g + "】" + m[g].length + " 人（SDP ライセンス " + lic + " 人）\nメンバー：" + m[g].map(function (u) { return u.last + " " + u.first; }).join("、") + "\nポリシーでグループを使うと、IdP 側で人を出し入れするだけで権限が変わります。",
+        cells: [App.esc(g), '<span class="num">' + m[g].length + "</span>", '<span class="num">' + lic + "</span>", g === "業務委託" ? '<span class="badge b-gray">Manual</span>' : '<span class="badge b-info">SCIM</span>', '<span class="muted">' + App.esc(used) + "</span>"] };
+    }));
+  }
   document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("#utabs button").forEach(function (b) { b.onclick = function () {
+      document.querySelectorAll("#utabs button").forEach(function (x) { x.setAttribute("aria-selected", String(x === b)); });
+      const g = b.dataset.t === "grp";
+      document.getElementById("grpView").hidden = !g; document.getElementById("dirBar").hidden = g; document.querySelector("#rows").closest(".tbl-wrap").hidden = g;
+      if (g) grp();
+    }; });
     draw();
     document.getElementById("q").addEventListener("input", draw);
     document.getElementById("onlyConn").addEventListener("change", draw);

@@ -102,28 +102,28 @@
     monitoring: { label: "Monitoring", home: "topology.html", sections: [
       { t: "INVESTIGATION", items: [
         ["topology", "Topology", "topology.html", "target"], ["events", "Events", "events.html", "bars"],
-        ["sites-overview", "Sites Overview", null, "table"], ["sdp-overview", "SDP Users Overview", null, "nodes"],
-        ["app-analytics", "App Analytics", null, "grid"], ["routing-table", "Routing Table", null, "route"],
+        ["sites-overview", "Sites Overview", "sites-overview.html", "table"], ["sdp-overview", "SDP Users Overview", "sdp-overview.html", "nodes"],
+        ["app-analytics", "App Analytics", "app-analytics.html", "grid"], ["routing-table", "Routing Table", "routing-table.html", "route"],
         ["audit-trail", "Audit Trail", "audit-trail.html", "list"]] },
       { t: "DASHBOARDS", items: [
-        ["d1", "Security Threats", null, "shield"], ["d2", "MITRE ATT&CK", null, "shield"], ["d3", "Cloud Apps", null, "hex"],
-        ["d4", "DLP", null, "shield"], ["d5", "SaaS Security API", null, "shield"], ["d6", "SDP Users", null, "nodes"], ["d7", "Network Dashboard", null, "grid"]] },
-      { t: "PRACTICES ASSESSMENT", items: [["bp", "Best Practices", null, "check"]] },
-      { t: "DETECTION & RESPONSE", items: [["s1", "Stories Dashboard", null, "table"], ["s2", "Stories Workbench", null, "shield"]] }
+        ["security-threats", "Security Threats", "security-threats.html", "shield"], ["mitre", "MITRE ATT&CK", "mitre.html", "shield"], ["cloud-apps", "Cloud Apps", "cloud-apps.html", "hex"],
+        ["dlp-dashboard", "DLP", "dlp-dashboard.html", "shield"], ["saas-security", "SaaS Security API", "saas-security.html", "shield"], ["sdp-dashboard", "SDP Users", "sdp-dashboard.html", "nodes"], ["network-dashboard", "Network Dashboard", "network-dashboard.html", "grid"]] },
+      { t: "PRACTICES ASSESSMENT", items: [["best-practices", "Best Practices", "best-practices.html", "check"]] },
+      { t: "DETECTION & RESPONSE", items: [["stories-dashboard", "Stories Dashboard", "stories-dashboard.html", "table"], ["stories-workbench", "Stories Workbench", "stories-workbench.html", "shield"]] }
     ] },
     network: { label: "Network", home: "sites.html", sections: [
-      { t: "SITES", items: [["sites", "Sites", "sites.html", "site"], ["groups", "Groups", null, "grid"]] },
+      { t: "SITES", items: [["sites", "Sites", "sites.html", "site"], ["groups", "Groups", "groups.html", "grid"]] },
       { t: "ROUTING & OPTIMIZATION", items: [
         ["network-rules", "Network Rules", "network-rules.html", "route"],
         ["bandwidth", "Bandwidth Management", "bandwidth.html", "gauge"],
         ["ip-allocation", "IP Allocation", "ip-allocation.html", "ip"],
-        ["dns", "DNS Settings", null, "globe"]] }
+        ["dns", "DNS Settings", "dns-settings.html", "globe"]] }
     ] },
     access: { label: "Access", home: "users.html", sections: [
       { t: "USERS", items: [["users", "Users", "users.html", "users"], ["directory", "Directory Services", "directory-services.html", "nodes"]] },
       { t: "CLIENT POLICIES", items: [
         ["client-connectivity", "Client Connectivity Policy", "client-connectivity.html", "key"],
-        ["posture", "Device Posture", null, "check"]] }
+        ["posture", "Device Posture", "device-posture.html", "check"]] }
     ] },
     security: { label: "Security", home: "internet-firewall.html", sections: [
       { t: "CATO FIREWALLS", items: [
@@ -131,13 +131,16 @@
         ["wan-firewall", "WAN Firewall", "wan-firewall.html", "fire"]] },
       { t: "THREAT PROTECTION", items: [
         ["tls", "TLS Inspection", "tls-inspection.html", "lock"],
-        ["threat", "Threat Prevention", null, "shield"], ["casb", "Application Control", null, "hex"], ["dlp", "Data Protection", null, "shield"]] }
+        ["threat", "Threat Prevention", "threat-prevention.html", "shield"], ["casb", "Application Control", "app-control.html", "hex"], ["dlp", "Data Protection", "data-protection.html", "shield"]] }
     ] },
-    assets: { label: "Assets", home: null, sections: [] },
+    assets: { label: "Assets", home: "device-inventory.html", sections: [
+      { t: "ASSETS", items: [["device-inventory", "Device Inventory", "device-inventory.html", "grid"]] }
+    ] },
     administration: { label: "Administration", home: "administrators.html", sections: [
       { t: "ADMINISTRATION", items: [
         ["administrators", "Administrators", "administrators.html", "admin"],
-        ["license", "License", null, "key"], ["api", "API Keys", null, "key"]] }
+        ["license", "License", "license.html", "key"], ["api", "API Keys", "api-keys.html", "key"]] },
+      { t: "TRAINING", items: [["whats-new", "What's New", "whats-new.html", "bell"]] }
     ] }
   };
   App.NAV = NAV;
@@ -154,16 +157,16 @@
     top.innerHTML = `
       <button class="top-ico menu-btn" id="menuBtn" type="button" aria-label="メニューを開く">${App.icon("menu")}</button>
       <a class="logo" href="topology.html" title="CMA Trainer（学習用）"><b>CMA TRAINER</b><small>学習用シミュレーター</small></a>
-      <button class="apps-btn" type="button" aria-label="アプリ一覧" data-na>${App.icon("grid")}</button>
+      <button class="apps-btn" type="button" id="appsBtn" aria-label="アプリ一覧" data-tip="すべての画面への近道を表示します。">${App.icon("grid")}</button>
       <nav class="tabs" aria-label="メインメニュー">
-        ${Object.entries(NAV).map(([k, v]) => `<a href="${v.home || "#"}" class="${k === tab ? "active" : ""}" ${v.home ? "" : 'data-na="Assets"'}>${v.label}</a>`).join("")}
+        ${Object.entries(NAV).map(([k, v]) => `<a href="${v.home}" class="${k === tab ? "active" : ""}">${v.label}</a>`).join("")}
       </nav>
       <div class="top-right">
         <a class="guide-btn" href="guide.html" data-tip="図解の操作要領（手順書）を開きます。まず必須でやることも載っています。">${App.icon("book")}<span>操作要領</span></a>
         <span class="train-pill" data-tip="これは実機ではなく、練習用のシミュレーターです。">TRAINING</span>
-        <button class="whatsnew" type="button" data-na data-tip="実機では新機能のお知らせが表示されます（研修版では未収録）。">What's New</button>
-        <button class="top-ico" type="button" aria-label="アラート" data-na data-tip="実機ではアカウントへの重要なお知らせが表示されます（研修版では未収録）。">${App.icon("alert")}</button>
-        <button class="top-ico" type="button" aria-label="通知" data-na data-tip="実機では通知が表示されます（研修版では未収録）。">${App.icon("bell")}</button>
+        <a class="whatsnew" href="whats-new.html" data-tip="新機能・変更点のお知らせを表示します（研修版では研修サイトの更新履歴）。">What's New</a>
+        <button class="top-ico" type="button" id="alertBtn" aria-label="アラート" data-tip="アカウントの重要なお知らせ（切断中の拠点など）を表示します。">${App.icon("alert")}<span class="top-badge" id="alertBadge" hidden></span></button>
+        <button class="top-ico" type="button" id="bellBtn" aria-label="通知" data-tip="最近の通知（設定変更・ミッション達成など）を表示します。">${App.icon("bell")}</button>
         <button class="top-ico" type="button" id="helpBtn" aria-label="画面の見方" data-tip="画面の見方と、まず最初にやることをもう一度表示します。">${App.icon("help")}</button>
       </div>`;
     body.insertBefore(top, body.firstChild);
@@ -199,6 +202,15 @@
       if (na) { e.preventDefault(); App.toast(`「${na.dataset.na || na.textContent.trim() || "この機能"}」は研修版では未収録です（実機には存在します）。`, "warn"); }
     });
     $("#helpBtn").addEventListener("click", () => App.tour());
+    $("#appsBtn").addEventListener("click", (e) => App.flyout(e.currentTarget, "すべての画面", Object.values(NAV).map((v) => `<div class="fly-sec"><b>${v.label}</b>${v.sections.flatMap((s) => s.items).map(([, l, h]) => `<a href="${h}">${esc(l)}</a>`).join("")}</div>`).join(""), "wide"));
+    const down = App.sites().filter((x) => x.status !== "Connected");
+    if (down.length) { $("#alertBadge").hidden = false; $("#alertBadge").textContent = down.length; }
+    $("#alertBtn").addEventListener("click", (e) => App.flyout(e.currentTarget, "Account Alerts", down.length ? down.map((x) => `<a class="fly-item" href="site.html" data-sel="${x.id}"><span class="dot ${x.status === "Disconnected" ? "ng" : "warn"}"></span><span><b>${esc(x.name)}</b> は ${x.status === "Disconnected" ? "切断中です" : "Socket 未接続です"}<small>${x.status === "Disconnected" ? "Snapshot で原因を確認してください" : "現地で Socket を接続してください"}</small></span></a>`).join("") : '<p class="muted" style="padding:10px 14px">重要なお知らせはありません。</p>'));
+    $("#bellBtn").addEventListener("click", (e) => {
+      const au = App.db.get("audit", seedAudit).slice(0, 6);
+      App.flyout(e.currentTarget, "Notifications", au.map((a) => `<a class="fly-item" href="audit-trail.html"><span class="dot ${a.action === "Delete" ? "ng" : "ok"}"></span><span><b>${esc(a.module)}：${esc(a.action)}</b> ${esc(a.object)}<small>${App.fmtShort(a.t)} ／ ${esc(a.admin)}</small></span></a>`).join("") + '<a class="fly-more" href="audit-trail.html">Audit Trail をすべて見る →</a>');
+    });
+    document.addEventListener("click", (e) => { const a = e.target.closest("[data-sel]"); if (a) App.db.set("selectedSite", a.dataset.sel); });
     $("#menuBtn").addEventListener("click", () => body.classList.toggle("side-open"));
     $("#sideToggle").addEventListener("click", () => {
       if (matchMedia("(max-width: 900px)").matches) body.classList.remove("side-open");
@@ -386,7 +398,9 @@
     ["site_add", "新しい拠点（サイト）を追加する", "Network > Sites → New → Apply", "sites.html"],
     ["admin_add", "管理者アカウントを追加する", "Administration > Administrators → New → Apply", "administrators.html"],
     ["ccp_rule", "Client Connectivity Policy にルールを追加して Publish", "Access > Client Connectivity Policy", "client-connectivity.html"],
-    ["audit_check", "Audit Trail で自分の変更を確認する", "Monitoring > Audit Trail（何か変更した後に）", "audit-trail.html"]
+    ["audit_check", "Audit Trail で自分の変更を確認する", "Monitoring > Audit Trail（何か変更した後に）", "audit-trail.html"],
+    ["dns_fwd", "社内ドメインの DNS 転送先を設定する", "Network > DNS Settings → Domain Forwarding に追加 → Save", "dns-settings.html"],
+    ["bp_check", "Best Practices の未対応項目を1つ開いて対処する", "Monitoring > Best Practices →［対処する］", "best-practices.html"]
   ];
   App.complete = (id) => {
     const done = App.db.get("missions", {});
@@ -434,6 +448,46 @@
   }
   App.renderMissions = renderMissions;
 
+  /* ---------------- 上部バーのドロップダウン ---------------- */
+  App.flyout = (anchor, title, html, cls = "") => {
+    const ex = $(".flyout"); if (ex) { const same = ex.dataset.for === anchor.id; ex.remove(); if (same) return; }
+    const f = document.createElement("div");
+    f.className = "flyout " + cls; f.dataset.for = anchor.id || "";
+    f.innerHTML = `<div class="fly-h">${esc(title)}</div><div class="fly-b">${html}</div>`;
+    document.body.appendChild(f);
+    const r = anchor.getBoundingClientRect();
+    f.style.top = r.bottom + 6 + "px";
+    f.style.left = Math.max(8, Math.min(r.right - f.offsetWidth, innerWidth - f.offsetWidth - 8)) + "px";
+    const off = (e) => { if (!f.contains(e.target) && !anchor.contains(e.target)) { f.remove(); document.removeEventListener("mousedown", off); } };
+    setTimeout(() => document.addEventListener("mousedown", off));
+  };
+
+  /* ---------------- 表示部品（タイル・棒グラフ・ドーナツ・表） ---------------- */
+  App.tiles = (arr) => `<div class="tiles">${arr.map((t) => `<div class="tile ${t.tone || ""}" data-tip="${esc(t.tip || t.label)}"><span class="tl">${esc(t.label)}</span><b class="tv">${esc(t.value)}</b>${t.sub ? `<span class="ts">${esc(t.sub)}</span>` : ""}</div>`).join("")}</div>`;
+  App.bars = (items, opt = {}) => {
+    const max = opt.max || Math.max(1, ...items.map((i) => i.value));
+    return `<div class="bars">${items.map((i) => `<div class="bar-row" data-tip="${esc(i.tip || i.label + "：" + i.value + (opt.unit || ""))}"><span class="bl">${esc(i.label)}</span><span class="bt"><i style="width:${Math.max(2, (i.value / max) * 100)}%;background:${i.color || "var(--brand)"}"></i></span><span class="bv">${esc(i.text || i.value + (opt.unit || ""))}</span></div>`).join("")}</div>`;
+  };
+  App.donut = (segs, center, sub) => {
+    const tot = segs.reduce((a, b) => a + b.value, 0) || 1;
+    let ang = -Math.PI / 2, out = "";
+    const R = 52, r = 34, cx = 64, cy = 64;
+    segs.forEach((sg) => {
+      const a2 = ang + (sg.value / tot) * Math.PI * 2;
+      const big = a2 - ang > Math.PI ? 1 : 0;
+      const p = (rad, a) => `${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`;
+      const d = sg.value >= tot ? `M${cx},${cy - R}A${R},${R} 0 1 1 ${cx - 0.01},${cy - R}L${cx - 0.01},${cy - r}A${r},${r} 0 1 0 ${cx},${cy - r}Z` : `M${p(R, ang)}A${R},${R} 0 ${big} 1 ${p(R, a2)}L${p(r, a2)}A${r},${r} 0 ${big} 0 ${p(r, ang)}Z`;
+      out += `<path d="${d}" fill="${sg.color}" data-tip="${esc(sg.tip || sg.label + "：" + sg.value + "（" + Math.round((sg.value / tot) * 100) + "%）")}"/>`;
+      ang = a2;
+    });
+    return `<div class="donut"><svg viewBox="0 0 128 128" role="img" aria-label="${esc(center)}">${out}<text x="64" y="64" text-anchor="middle" font-size="18" font-weight="500" fill="#2b2f33">${esc(center)}</text><text x="64" y="80" text-anchor="middle" font-size="9" fill="#6b7178">${esc(sub || "")}</text></svg>
+      <ul>${segs.map((sg) => `<li data-tip="${esc(sg.tip || sg.label + "：" + sg.value)}"><i style="background:${sg.color}"></i>${esc(sg.label)}<b>${sg.value}</b></li>`).join("")}</ul></div>`;
+  };
+  App.table = (cols, rows, opt = {}) => `<div class="tbl-wrap"><table class="tbl"><thead><tr>${cols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map((r) => `<tr class="${r.cls || ""}" ${r.tip ? `data-tip="${esc(r.tip)}"` : ""} ${r.attr || ""}>${r.cells.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${cols.length}" class="muted" style="text-align:center;padding:22px">${esc(opt.empty || "データがありません")}</td></tr>`}</tbody></table></div>`;
+  App.card = (title, body, opt = {}) => `<div class="card ${opt.cls || ""}" ${opt.tip ? `data-tip="${esc(opt.tip)}"` : ""}><div class="card-h"><h2>${title}</h2>${opt.right || ""}</div><div class="${opt.flush ? "" : "card-b"}">${body}</div></div>`;
+  App.sev = (s) => `<span class="badge ${s === "Critical" || s === "High" ? "b-ng" : s === "Medium" ? "b-warn" : "b-gray"}">${esc(s)}</span>`;
+  App.timeRange = (id = "tr", def = "24h") => `<select class="select" id="${id}" style="width:auto" aria-label="期間" data-tip="表示する期間を切り替えます。">${[["1h", "Last 1 Hour"], ["24h", "Last 24 Hours"], ["7d", "Last 7 Days"], ["30d", "Last 30 Days"]].map(([v, l]) => `<option value="${v}" ${v === def ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+
   /* ---------------- 共通マスタ（選択肢） ---------------- */
   App.sites = () => App.db.get("sites", seedSites);
   function seedSites() {
@@ -470,11 +524,28 @@
       "Domain: partner-portal.example.net", "Domain: legacy-app.example.co.jp"],
     services: ["HTTP", "HTTPS", "SMB", "RDP", "SSH", "DNS", "SIP", "TCP/8443"],
     locations: ["Tokyo", "Osaka", "Sapporo", "Singapore", "Hong Kong", "Los Angeles", "Frankfurt"],
-    posture: ["Corporate Device (Domain Joined)", "Antivirus Running", "OS Up to Date", "Disk Encryption"],
+    posture: () => { const d = App.db.get("posture", null); return d ? d.profiles.map((p) => p.name) : ["Corporate Device (Domain Joined)", "Antivirus Running", "OS Up to Date", "Disk Encryption"]; },
     platforms: ["Windows", "macOS", "iOS", "Android", "Linux"],
     countries: ["Japan", "United States", "Singapore", "China"],
     usersGroups: ["Group: 全社員", "Group: 営業部", "Group: 情報システム部", "Group: 業務委託", "User: suzuki@example.co.jp"]
   };
+
+  App.stories = () => App.db.get("stories", () => {
+    const h = 3600e3, now = Date.now();
+    return [
+      { id: "ST-1042", title: "感染端末からの C&C 通信の疑い", sev: "Critical", status: "Open", owner: "", user: "yamada@example.co.jp", host: "PC-IT-0231", t: now - 3 * h, verdict: "",
+        ind: ["宛先 198.51.100.77（既知の C&C サーバ）", "DNS トンネリングの兆候", "同じ端末から 96 回の接続試行"], tl: [[3, "IPS：Known C&C communication を検知・ブロック", 1], [2.6, "同じ端末から DNS トンネリングの兆候", 1], [2, "通信は継続（すべてブロック）", 0]],
+        rec: "端末をネットワークから切り離してウイルススキャン。ブロックされているため外部への通信は成功していません。" },
+      { id: "ST-1039", title: "フィッシングサイトへの連続アクセス", sev: "High", status: "Open", owner: "", user: "suzuki@example.co.jp", host: "PC-SL-0112", t: now - 9 * h, verdict: "",
+        ind: ["フィッシング判定ドメイン 5 件", "メール内リンクからのアクセス"], tl: [[9, "phishing-login.test へのアクセスをブロック", 1], [8.5, "類似ドメインへのアクセスをブロック（4 件）", 1]],
+        rec: "本人にパスワードを入力していないか確認。入力していればパスワード変更と MFA の再設定。" },
+      { id: "ST-1031", title: "個人クラウドストレージへの大量アップロード", sev: "Medium", status: "In Progress", owner: "trainee@example.com", user: "tanaka@example.co.jp", host: "PC-SL-0140", t: now - 26 * h, verdict: "",
+        ind: ["Dropbox へ 2.1 GB", "DLP：クレジットカード番号を検知"], tl: [[26, "Dropbox へのアップロード開始", 0], [25.5, "DLP がカード番号を検知しブロック", 1]],
+        rec: "上長に業務上の必要性を確認。不要なら Application Control で個人ストレージへのアップロードを禁止。" },
+      { id: "ST-1020", title: "社外端末の不審な国からの接続", sev: "Low", status: "Closed", owner: "yamada.admin@example.co.jp", user: "vendor01@partner.example", host: "VENDOR-LT01", t: now - 70 * h, verdict: "Benign",
+        ind: ["Singapore からの接続"], tl: [[70, "Singapore から Cato Client で接続", 0]], rec: "出張のため問題なし（確認済み）。" }
+    ];
+  });
 
   /* ---------------- SVG 折れ線チャート ---------------- */
   App.lineChart = (series, opt = {}) => {
@@ -723,7 +794,7 @@
     "Network": "拠点（Sites）、経路と優先度（Network Rules）、帯域、固定IP の設定です。",
     "Access": "ユーザー管理と、リモート接続（Cato Client）を許可する条件の設定です。",
     "Security": "Internet / WAN Firewall と TLS Inspection などのセキュリティ設定です。",
-    "Assets": "研修版では未収録です（実機には存在します）。",
+    "Assets": "端末の一覧（Device Inventory）など、資産の情報を確認します。",
     "Administration": "管理者アカウントの追加・権限・MFA リセットを行います。",
     // サイドメニュー
     "Topology": "拠点と接続中のリモートユーザーを図で表示します。毎朝の健康確認はここから。",
@@ -741,6 +812,32 @@
     "TLS Inspection": "HTTPS を復号して検査する設定と、検査しない（Bypass）ルールです。",
     "Administrators": "管理者アカウントの一覧・追加・権限・MFA リセットを行います。",
     "All Sites": "拠点の一覧に戻ります。",
+    "Sites Overview": "全拠点の状態・帯域・品質を一覧で比較します。",
+    "SDP Users Overview": "リモートユーザーの接続状況（誰が・どこから・いつ）を一覧します。",
+    "App Analytics": "どのアプリがどれだけ使われているかを分析します。",
+    "Routing Table": "拠点ごとの経路（どの宛先へどこを通るか）を確認します。",
+    "Security Threats": "ブロックした脅威の件数・種類・対象を確認するダッシュボード。",
+    "MITRE ATT&CK": "検知した攻撃を MITRE ATT&CK の戦術・技術に当てはめて表示します。",
+    "Cloud Apps": "社内で使われているクラウドサービス（シャドーIT 含む）を可視化します。",
+    "DLP": "機密情報の持ち出し検知（DLP）の状況を表示します。",
+    "SaaS Security API": "Microsoft 365 などと API 連携し、公開リンクなどの設定リスクを確認します。",
+    "SDP Users": "リモートユーザーの利用状況（OS・バージョン・国）のダッシュボード。",
+    "Network Dashboard": "全拠点の通信量と回線品質をまとめて表示します。",
+    "Best Practices": "推奨設定ができているかを採点し、未対応の項目を案内します。",
+    "Stories Dashboard": "XDR が関連付けたインシデント（ストーリー）の一覧と傾向。",
+    "Stories Workbench": "ストーリーを1件ずつ調査・対応する作業画面。",
+    "Groups": "拠点やホストをまとめた「グループ」を管理します。ルールで使うと保守が楽になります。",
+    "DNS Settings": "DNS サーバと、社内ドメインの転送先（Domain Forwarding）を設定します。",
+    "Device Posture": "端末の状態チェック（OS・ウイルス対策など）と、その組み合わせのプロファイルを管理します。",
+    "Threat Prevention": "IPS・アンチマルウェア・DNS 保護などの脅威防御を設定します。",
+    "Application Control": "SaaS の操作（アップロード等）を許可・ブロックするルール（CASB）。",
+    "Data Protection": "機密データ（カード番号など）の持ち出しを検知・ブロックするルール（DLP）。",
+    "Device Inventory": "Cato が把握している端末の一覧（OS・利用者・状態）。",
+    "License": "契約しているライセンスの内容と使用状況を確認します。",
+    "API Keys": "API・自動化（Terraform など）用のキーを発行・管理します。",
+    "What's New": "研修サイトの更新内容と、実機の新機能の確認方法。",
+    "Real-Time": "この拠点の通信を1秒ごとにリアルタイム表示します。",
+    "High Availability": "Socket 2台構成（HA）の状態と切り替え試験。",
     "Snapshot": "Socket の状態、回線の Up/Down、遅延、接続履歴を確認します。",
     "Network Analytics": "スループット、パケットロス、遅延、ジッタのグラフを確認します。",
     "General": "サイト名・種別・ライセンス・タイムゾーンなどの基本設定です。",
@@ -876,6 +973,7 @@
     else if (tr.classList.contains("clickable")) out += "\nクリックで詳細・編集を開きます。";
     return out;
   }
+  App.SIDE_TIPS = TIPS;
   let tipEl = null, tipTimer = null, tipFor = null, mouse = { x: 0, y: 0 };
   function tipText(el) {
     if (el.dataset && el.dataset.tip) return el.dataset.tip;
@@ -978,7 +1076,7 @@
           <rect x="300" y="100" width="98" height="20" rx="2" fill="#2b2f33"/><text x="349" y="113" font-size="7.5" text-anchor="middle" fill="#fff">マウスを乗せると説明</text>
           <path d="M311 98l4 3h-8z" fill="#2b2f33"/>
           ${[0, 1, 2, 3].map((k) => `<rect x="100" y="${128 + k * 22}" width="290" height="14" fill="${k % 2 ? "#fff" : "#f6f8fa"}"/>`).join("")}
-          <rect x="316" y="226" width="96" height="18" rx="9" fill="#263238"/><text x="364" y="238" font-size="8" text-anchor="middle" fill="#fff">研修ミッション 0/13</text>
+          <rect x="316" y="226" width="96" height="18" rx="9" fill="#263238"/><text x="364" y="238" font-size="8" text-anchor="middle" fill="#fff">研修ミッション 0/15</text>
           ${C(1, 120, 10)}${C(2, 40, 120)}${C(3, 220, 160)}${C(4, 395, 120)}${C(5, 330, 36)}${C(6, 300, 226)}
         </svg>
         <ol class="tour-legend">

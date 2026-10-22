@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Best Practices | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="best-practices" data-crumb="Best Practices">
+<main class="main" id="main">
+  <div class="page-title"><h1>Best Practices</h1><span class="muted">推奨設定ができているかの採点</span></div>
+  <div class="tip"><span><b>使い方：</b>研修で変更した設定をもとに、推奨設定の達成度を採点します。<b>Failed</b> の項目の［対処する］を押すと該当画面に移動します。設定を直して戻ってくると、点数が上がります。</span></div>
+  <div class="grid2"><div id="c1"></div><div id="c2"></div></div>
+  <div class="card"><div class="card-h"><h2>Checks</h2><div class="btn-group" style="margin-left:auto"><select class="select" id="flt" style="width:auto" aria-label="絞り込み" data-tip="結果で絞り込みます。"><option value="">All</option><option>Failed</option><option>Passed</option></select></div></div><div id="tbl"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  const pol = function (k) { const s = App.db.get("pol." + k, null); return s ? s.published : null; };
+  const CHECKS = [
+    ["Security", "WAN Firewall が有効", function () { const p = pol("wan"); return !p || p.enabled; }, "wan-firewall.html", "無効だとアクセス制御が一切ありません。"],
+    ["Security", "TLS Inspection が有効", function () { const p = pol("tls"); return !!(p && p.enabled); }, "tls-inspection.html", "無効だと HTTPS の中身を検査できず、脅威防御・DLP の効果が限定的です。"],
+    ["Security", "危険カテゴリを Internet Firewall でブロック", function () { const p = pol("ifw"); return !p || p.rules.some(function (r) { return r.enabled && r.action === "Block" && r.app.some(function (a) { return /Phishing|Malware/.test(a); }); }); }, "internet-firewall.html", "フィッシング・マルウェア配布サイトは最初からブロックします。"],
+    ["Security", "Block ルールで Events を記録（Track）", function () { const p = pol("ifw"); return !p || p.rules.filter(function (r) { return r.action === "Block"; }).every(function (r) { return r.track; }); }, "internet-firewall.html", "記録がないと、ブロックされた理由を後から調べられません。"],
+    ["Security", "Threat Prevention（IPS・アンチマルウェア）が Block モード", function () { const t = App.db.get("threat", null); return !t || (t.ips === "Block" && t.am === "Block"); }, "threat-prevention.html", "Monitor のままだと検知しても止まりません。"],
+    ["Access", "Client Connectivity Policy が有効", function () { const p = pol("ccp"); return !p || p.enabled; }, "client-connectivity.html", "無効だと端末の状態に関係なく接続できます。"],
+    ["Access", "全管理者が MFA を設定済み", function () { const a = App.db.get("admins", null); return !a || a.every(function (x) { return x.mfa === "Enabled"; }); }, "administrators.html", "MFA 未設定の管理者アカウントは乗っ取りのリスクがあります。"],
+    ["Network", "社内ドメインの DNS 転送先を設定", function () { const d = App.db.get("dns", null); return !!(d && d.fwd.length); }, "dns-settings.html", "未設定だと、リモートユーザーが社内サーバの名前を引けません。"],
+    ["Network", "固定の送信元 IP（Allocated IP）を確保", function () { return App.db.get("ipalloc", []).length > 0; }, "ip-allocation.html", "IP 制限のある外部サービスを使うなら必要です。"],
+    ["Network", "本社・DC の Socket が HA 構成", function () { return App.sites().filter(function (s) { return s.type === "Headquarters"; }).every(function (s) { return s.ha; }); }, "sites.html", "止められない拠点は Socket を2台にします。"]
+  ];
+  function draw() {
+    const res = CHECKS.map(function (c) { return { cat: c[0], name: c[1], ok: c[2](), href: c[3], why: c[4] }; });
+    const pass = res.filter(function (r) { return r.ok; }).length, pct = Math.round(pass / res.length * 100);
+    document.getElementById("c1").innerHTML = App.card("Score", '<div class="score" data-tip="推奨設定 ' + res.length + ' 項目のうち ' + pass + ' 項目を満たしています。"><span class="big" style="color:' + (pct >= 80 ? "var(--ok)" : pct >= 50 ? "var(--warn)" : "var(--ng)") + '">' + pct + '</span><div><b>' + pass + " / " + res.length + ' passed</b><p class="muted">' + (pct >= 80 ? "よくできています。残りの項目も確認しましょう。" : "Failed の項目から対処しましょう。") + "</p></div></div>");
+    const cats = ["Security", "Access", "Network"];
+    document.getElementById("c2").innerHTML = App.card("Category", App.bars(cats.map(function (c) { const a = res.filter(function (r) { return r.cat === c; }), p = a.filter(function (r) { return r.ok; }).length; return { label: c, value: Math.round(p / a.length * 100), text: p + " / " + a.length, color: p === a.length ? "var(--ok)" : "var(--warn)", tip: c + "：" + p + " / " + a.length + " 項目を満たしています。" }; }), { max: 100 }));
+    const f = document.getElementById("flt").value;
+    document.getElementById("tbl").innerHTML = App.table(["Category", "Check", "Result", "Why it matters", ""], res.filter(function (r) { return !f || (f === "Passed") === r.ok; }).map(function (r) {
+      return { tip: "【" + r.name + "】" + (r.ok ? "満たしています。" : "満たしていません。") + "\n" + r.why, cells: [r.cat, App.esc(r.name), r.ok ? '<span class="badge b-ok">Passed</span>' : '<span class="badge b-ng">Failed</span>', '<span class="muted">' + App.esc(r.why) + "</span>", r.ok ? "" : '<a class="btn" href="' + r.href + '" data-fix data-tip="該当の設定画面に移動します。">対処する</a>'] };
+    }));
+    document.querySelectorAll("[data-fix]").forEach(function (a) { a.addEventListener("click", function () { App.complete("bp_check"); }); });
+  }
+  document.addEventListener("DOMContentLoaded", function () { document.getElementById("flt").onchange = draw; draw(); });
+})();
+</script>
+
+</body>
+</html>

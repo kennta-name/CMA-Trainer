@@ -245,6 +245,25 @@
       <a class="btn btn-primary practice" href="administrators.html">Administrators で練習する →</a>
     </section>
 
+    <!-- ===== 13 more ===== -->
+    <section class="sec" id="more" data-toc="そのほかの画面（地図）">
+      <div class="sec-h"><span class="no">13</span><h2>そのほかの画面 ― 全画面の地図</h2></div>
+      <p class="lead">シミュレーターのすべての画面を、タブごとに並べた地図です。箱にマウスを乗せると「何をする画面か」、クリックするとその画面に移動します。緑の箱は研修ミッションに含まれる画面です。</p>
+      <figure class="fig"><div data-fig="map"></div><figcaption>図13-1　全画面の地図（クリックで移動）</figcaption></figure>
+      <table class="mini"><thead><tr><th style="width:190px">こんなとき</th><th style="width:200px">開く画面</th><th>見るところ</th></tr></thead><tbody>
+        <tr><td>どの拠点の品質が悪い？</td><td><a href="sites-overview.html">Sites Overview</a> / <a href="network-dashboard.html">Network Dashboard</a></td><td>赤・黄色の値、回線品質マップの Poor のマス</td></tr>
+        <tr><td>「いま遅い」と言われた</td><td>Sites > {拠点} > <a href="site.html">Real-Time</a></td><td>いま帯域を使っている端末・アプリ</td></tr>
+        <tr><td>他拠点に通信できない</td><td><a href="routing-table.html">Routing Table</a></td><td>宛先 IP の経路があるか、Withdrawn になっていないか</td></tr>
+        <tr><td>在宅で社内サーバ名が引けない</td><td><a href="dns-settings.html">DNS Settings</a></td><td>Domain Forwarding に社内ドメインがあるか</td></tr>
+        <tr><td>リモート接続できない人がいる</td><td><a href="sdp-overview.html">SDP Users Overview</a> / <a href="device-posture.html">Device Posture</a></td><td>ライセンス・最終接続・Client バージョン・ポスチャの不合格</td></tr>
+        <tr><td>脅威の状況を報告したい</td><td><a href="security-threats.html">Security Threats</a> / <a href="mitre.html">MITRE ATT&amp;CK</a></td><td>件数の推移、特定ユーザーへの集中、右側（C&amp;C・持ち出し）の検知</td></tr>
+        <tr><td>インシデントに対応したい</td><td><a href="stories-workbench.html">Stories Workbench</a></td><td>Indicators・Timeline → 推奨対応 → Verdict を付けて Close</td></tr>
+        <tr><td>シャドーIT・情報漏えいが心配</td><td><a href="cloud-apps.html">Cloud Apps</a> / <a href="dlp-dashboard.html">DLP</a> / <a href="saas-security.html">SaaS Security API</a></td><td>Unreviewed のサービス、持ち出し先、公開リンク</td></tr>
+        <tr><td>設定の抜け漏れを確認したい</td><td><a href="best-practices.html">Best Practices</a></td><td>Failed の項目 →［対処する］</td></tr>
+        <tr><td>自動化・外部連携をしたい</td><td><a href="api-keys.html">API Keys</a></td><td>権限は最小、利用元 IP 制限、期限付き</td></tr>
+      </tbody></table>
+    </section>
+
     <p class="foot-note">この操作要領は、Cato Networks の公開ドキュメントと添付いただいた実機画面をもとにした非公式の学習資料です。実機の画面・メニューはアップデートで変わることがあります。作業前に最新の公式ドキュメントを確認してください。</p>
   </main>
 </div>
@@ -365,10 +384,33 @@
     users: "ユーザー同期から接続許可までの流れ。",
     events: "Events の調べ方：3ステップで原因のルールを特定します。",
     trouble: "切り分けフロー：上から順に確認。ひし形にマウスを乗せると確認方法が出ます。",
-    admin: "管理者アカウントの流れと Audit Trail。"
+    admin: "管理者アカウントの流れと Audit Trail。",
+    map: "全画面の地図：箱にマウスを乗せると説明、クリックでその画面へ移動。緑はミッションのある画面。"
   };
   /* ---------- 図 ---------- */
   const FIG = {
+    map: function () {
+      const T2 = [
+        ["Monitoring", [["Topology", "topology.html", 1], ["Events", "events.html", 1], ["Sites Overview", "sites-overview.html"], ["SDP Users Overview", "sdp-overview.html"], ["App Analytics", "app-analytics.html"], ["Routing Table", "routing-table.html"], ["Audit Trail", "audit-trail.html", 1], ["Security Threats", "security-threats.html"], ["MITRE ATT&CK", "mitre.html"], ["Cloud Apps", "cloud-apps.html"], ["DLP", "dlp-dashboard.html"], ["SaaS Security API", "saas-security.html"], ["SDP Users", "sdp-dashboard.html"], ["Network Dashboard", "network-dashboard.html"], ["Best Practices", "best-practices.html", 1], ["Stories Dashboard", "stories-dashboard.html"], ["Stories Workbench", "stories-workbench.html"]]],
+        ["Network", [["Sites", "sites.html", 1], ["Groups", "groups.html"], ["Network Rules", "network-rules.html", 1], ["Bandwidth Management", "bandwidth.html"], ["IP Allocation", "ip-allocation.html", 1], ["DNS Settings", "dns-settings.html", 1]]],
+        ["Access", [["Users", "users.html"], ["Directory Services", "directory-services.html"], ["Client Connectivity Policy", "client-connectivity.html", 1], ["Device Posture", "device-posture.html"]]],
+        ["Security", [["Internet Firewall", "internet-firewall.html", 1], ["WAN Firewall", "wan-firewall.html", 1], ["TLS Inspection", "tls-inspection.html", 1], ["Threat Prevention", "threat-prevention.html"], ["Application Control", "app-control.html"], ["Data Protection", "data-protection.html"]]],
+        ["Assets", [["Device Inventory", "device-inventory.html"]]],
+        ["Administration", [["Administrators", "administrators.html", 1], ["License", "license.html"], ["API Keys", "api-keys.html"], ["What's New", "whats-new.html"]]]
+      ];
+      const SIDE_TIPS = (window.App && App.SIDE_TIPS) || {};
+      let s = "";
+      T2.forEach(function (col, ci) {
+        const x = 8 + ci * 142;
+        s += B(x, 6, 132, 26, col[0], { f: C.green, s: C.green, c: "#fff", b: true, fs: 12, tip: col[0] + " タブ" });
+        col[1].forEach(function (it, k) {
+          const y = 40 + k * 26;
+          const tip = (SIDE_TIPS[it[0]] || it[0]) + (it[2] ? "\n（研修ミッションあり）" : "") + "\nクリックで開きます。";
+          s += '<a href="' + it[1] + '">' + B(x, y, 132, 22, it[0], { f: it[2] ? C.gsoft : "#fff", s: it[2] ? C.green : C.line, fs: 10, tip: tip }) + "</a>";
+        });
+      });
+      return svg(860, 40 + 17 * 26 + 8, s, "全画面の地図");
+    },
     mustPath: function () {
       const st = [["研修を開始", "名前を入力"], ["画面の見方", "右上の ?"], ["反映の流れ", "Save → Publish"], ["Topology", "全体を確認"], ["ミッション", "残りを順番に"]];
       let s = "";

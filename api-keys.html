@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>API Keys | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="administration" data-page="api" data-crumb="API Keys">
+<main class="main" id="main">
+  <div class="page-title"><h1>API Keys</h1><span class="muted">自動化（Terraform・スクリプト・SIEM 連携）用のキー</span></div>
+  <div class="tip"><span><b>安全な使い方：</b>キーは<b>発行時に一度しか表示されません</b>。目的ごとに分け、権限は必要最小限（読み取りだけなら View）にし、利用元の IP を制限し、有効期限を設定します。不要になったキーはすぐ削除します。研修版で発行されるキーはダミーです。</span></div>
+  <div class="card"><div class="pol-bar"><span class="muted" id="cnt"></span><div class="btn-group" style="margin-left:auto"><button class="btn btn-primary" id="new" type="button">＋ New</button></div></div><div id="tbl"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  let K = App.db.get("apikeys", [{ id: "k1", name: "SIEM export (read-only)", perm: "View", ip: "203.0.113.50", exp: "2027/03/31", last: Date.now() - 3600e3, owner: "yamada.admin@example.co.jp" }, { id: "k2", name: "Terraform (old)", perm: "Edit", ip: "Any", exp: "なし", last: Date.now() - 140 * 864e5, owner: "msp-operator@partner.example" }]);
+  let flash = null;
+  function draw() {
+    document.getElementById("cnt").textContent = K.length + " keys";
+    document.getElementById("tbl").innerHTML = App.table(["Name", "Permission", "Allowed IPs", "Expires", "Last Used", "Owner", ""], K.map(function (k) {
+      const risky = k.perm === "Edit" && k.ip === "Any", stale = k.last && Date.now() - k.last > 90 * 864e5;
+      return { cls: k.id === flash ? "flash" : "", tip: "【" + k.name + "】権限 " + k.perm + " ／ 利用元 " + k.ip + " ／ 期限 " + k.exp + (risky ? "\n注意：編集権限なのに利用元 IP が制限されていません。" : "") + (stale ? "\n90日以上使われていません。不要なら削除します。" : ""),
+        cells: [App.esc(k.name), k.perm === "Edit" ? '<span class="badge b-warn">Edit</span>' : '<span class="badge b-gray">View</span>', '<span class="mono">' + App.esc(k.ip) + "</span>" + (k.ip === "Any" ? ' <span class="badge b-warn">制限なし</span>' : ""), App.esc(k.exp), k.last ? App.fmtShort(k.last) + (stale ? ' <span class="badge b-warn">未使用</span>' : "") : "—", App.esc(k.owner), '<button class="kebab" type="button" data-del="' + k.id + '" aria-label="削除" data-tip="このキーを削除（失効）します。">' + App.icon("trash") + "</button>"] };
+    }));
+    flash = null;
+    document.querySelectorAll("[data-del]").forEach(function (b) { b.onclick = function () { const k = K.find(function (x) { return x.id === b.dataset.del; }); App.modal({ title: "API キーの削除", body: "「" + App.esc(k.name) + "」を削除します。このキーを使っている自動化は動かなくなります。", ok: "削除", danger: true, onOk: function () { K = K.filter(function (x) { return x !== k; }); App.db.set("apikeys", K); App.audit("API Keys", "Delete", k.name, k.perm); App.toast("削除しました。", "ok"); draw(); } }); }; });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    draw();
+    document.getElementById("new").onclick = function () {
+      App.panel({ title: "Create API Key", model: { name: "", perm: "View", ip: "", exp: "90 days" },
+        sections: [{ title: "General", open: true, fields: [{ key: "name", label: "Name（用途がわかる名前）", req: true, placeholder: "例：Terraform 本番用" }, { key: "perm", label: "Permission", type: "select", options: [["View", "View（読み取りのみ）"], ["Edit", "Edit（設定変更も可能）"]], help: "読み取りだけなら View にします。" }, { key: "ip", label: "Allowed IPs（利用元IP）", placeholder: "例：203.0.113.50（空欄＝制限なし）" }, { key: "exp", label: "Expiration", type: "select", options: ["30 days", "90 days", "1 year", "Never"] }] }],
+        onApply: function (m) {
+          if (!m.name.trim()) { App.toast("Name を入力してください。", "ng"); return false; }
+          const k = { id: App.uid(), name: m.name.trim(), perm: m.perm, ip: m.ip.trim() || "Any", exp: m.exp === "Never" ? "なし" : m.exp, last: null, owner: App.trainee().email };
+          K.unshift(k); flash = k.id; App.db.set("apikeys", K); App.audit("API Keys", "Create", k.name, k.perm);
+          App.modal({ title: "API キーを発行しました（研修用ダミー）", cancel: "", ok: "控えた", body: "<p>このキーは<b>今だけ表示されます</b>。安全な場所に保管してください。</p><p style=\"margin-top:8px\"><code class=\"mono\" style=\"word-break:break-all\">TRAINING-" + Math.random().toString(36).slice(2, 12).toUpperCase() + Math.random().toString(36).slice(2, 12).toUpperCase() + "</code></p>" });
+          draw();
+        } });
+    };
+  });
+})();
+</script>
+
+</body>
+</html>

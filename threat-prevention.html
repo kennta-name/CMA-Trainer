@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Threat Prevention | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="security" data-page="threat" data-crumb="Threat Prevention">
+<main class="main" id="main">
+  <div class="page-title"><h1>Threat Prevention</h1><span class="muted">IPS・アンチマルウェア・DNS 保護</span></div>
+  <div class="tip"><span><b>モードの違い：</b><b>Monitor</b>＝検知して記録するだけ（通信は通る）／<b>Block</b>＝検知したら止める。導入直後は Monitor で誤検知がないか確認し、問題なければ Block にします。誤検知した宛先は Exceptions（例外）に追加します。HTTPS の中身を検査するには TLS Inspection が必要です。</span></div>
+  <div class="card"><div class="card-h"><h2>Engines</h2></div><div id="eng"></div></div>
+  <div class="card"><div class="card-h"><h2>Exceptions（検査しない宛先）</h2><button class="btn" id="addEx" type="button" style="margin-left:auto" data-tip="誤検知した宛先を、脅威防御の対象外に追加します。">＋ Add Exception</button></div><div id="ex"></div></div>
+  <div class="card"><div class="card-b"><div class="status-banner pub" id="banner" style="margin:-16px -16px 12px"></div><button class="btn btn-primary" id="save" type="button">Save</button></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  let T = App.db.get("threat", { ips: "Block", am: "Monitor", ngam: true, dns: "Block", sandbox: false, ex: [{ dest: "update.legacy-vendor.example", engine: "IPS", reason: "自社業務アプリの更新通信で誤検知（CHG-0931）" }] });
+  let dirty = false;
+  const ENG = [["ips", "IPS（侵入防止）", "既知の攻撃パターン（脆弱性を狙う通信、C&C 通信など）を検知します。"], ["am", "Anti-Malware", "ダウンロードされるファイルをシグネチャで検査します。"], ["dns", "DNS Protection", "危険なドメインへの名前解決を止めます。"]];
+  function draw() {
+    document.getElementById("eng").innerHTML = App.table(["Engine", "What it does", "Mode"], ENG.map(function (e) {
+      return { tip: "【" + e[1] + "】現在：" + T[e[0]] + "\n" + (T[e[0]] === "Monitor" ? "検知しても通信は止まりません。誤検知がなければ Block にしましょう。" : T[e[0]] === "Off" ? "無効です。脅威を検知できません。" : "検知した通信を止めます。"),
+        cells: ["<b style='font-weight:500'>" + e[1] + "</b>", '<span class="muted">' + e[2] + "</span>", '<select class="select" data-k="' + e[0] + '" style="width:auto" aria-label="' + e[1] + 'のモード">' + ["Block", "Monitor", "Off"].map(function (m) { return "<option " + (T[e[0]] === m ? "selected" : "") + ">" + m + "</option>"; }).join("") + "</select>"] };
+    }).concat([{ tip: "次世代アンチマルウェア：機械学習で未知のマルウェアも検知します。", cells: ["<b style='font-weight:500'>Next-Gen Anti-Malware</b>", '<span class="muted">機械学習で未知のマルウェアも検知します。</span>', '<label class="switch"><input type="checkbox" data-b="ngam" ' + (T.ngam ? "checked" : "") + '><span class="track"></span>' + (T.ngam ? "On" : "Off") + "</label>"] }]));
+    document.getElementById("ex").innerHTML = App.table(["Destination", "Engine", "Reason", ""], T.ex.map(function (x, i) { return { tip: "【例外】" + x.dest + " は " + x.engine + " の検査対象外です。\n理由：" + x.reason + "\n例外は必要最小限にし、理由（申請番号）を必ず残します。", cells: ['<span class="mono">' + App.esc(x.dest) + "</span>", x.engine, App.esc(x.reason), '<button class="kebab" type="button" data-del="' + i + '" aria-label="削除" data-tip="この例外を削除します。">' + App.icon("trash") + "</button>"] }; }), { empty: "例外はありません。" });
+    const b = document.getElementById("banner"); b.className = "status-banner " + (dirty ? "dirty" : "pub"); b.innerHTML = dirty ? "<b>未保存の変更があります。</b>［Save］で反映します。" : "保存済みの設定を表示しています。";
+    document.getElementById("save").disabled = !dirty;
+    document.querySelectorAll("[data-k]").forEach(function (sel) { sel.onchange = function () { T[sel.dataset.k] = sel.value; dirty = true; draw(); }; });
+    document.querySelectorAll("[data-b]").forEach(function (c) { c.onchange = function () { T[c.dataset.b] = c.checked; dirty = true; draw(); }; });
+    document.querySelectorAll("[data-del]").forEach(function (x) { x.onclick = function () { T.ex.splice(+x.dataset.del, 1); dirty = true; draw(); }; });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    draw();
+    document.getElementById("addEx").onclick = function () { App.panel({ title: "Add Exception", model: { dest: "", engine: "IPS", reason: "" }, sections: [{ title: "Exception", open: true, fields: [{ key: "dest", label: "Destination（ドメイン or IP）", req: true }, { key: "engine", label: "Engine", type: "select", options: ["IPS", "Anti-Malware", "DNS Protection"] }, { key: "reason", label: "Reason（理由・申請番号）", req: true }] }],
+      onApply: function (m) { if (!m.dest.trim() || !m.reason.trim()) { App.toast("宛先と理由を入力してください。", "ng"); return false; } T.ex.push(m); dirty = true; draw(); } }); };
+    document.getElementById("save").onclick = function () { App.db.set("threat", T); dirty = false; App.audit("Threat Prevention", "Save", "Engines", "IPS:" + T.ips + " / AM:" + T.am + " / DNS:" + T.dns); App.toast("保存しました。", "ok"); draw(); };
+  });
+})();
+</script>
+
+</body>
+</html>

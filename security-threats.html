@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Security Threats | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="security-threats" data-crumb="Security Threats">
+<main class="main" id="main">
+  <div class="page-title"><h1>Security Threats</h1><span class="muted">ブロックした脅威のダッシュボード</span><div style="margin-left:auto" id="trWrap"></div></div>
+  <div class="tip"><span><b>見方：</b>件数が急に増えた種類や、同じユーザー・端末に集中している脅威に注目します。特定の人に集中していれば、その端末が感染している可能性があります。棒にマウスを乗せると内訳、ユーザーの行をクリックすると Events で詳細を確認できます。</span></div>
+  <div id="tiles"></div>
+  <div class="grid2"><div id="c1"></div><div id="c2"></div></div>
+  <div class="grid2"><div id="c3"></div><div id="c4"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  function draw() {
+    const k = { "1h": 0.05, "24h": 0.5, "7d": 1, "30d": 3.6 }[document.getElementById("tr").value];
+    const n = function (v) { return Math.max(0, Math.round(v * k)); };
+    document.getElementById("tiles").innerHTML = App.tiles([
+      { label: "Threats Blocked", value: n(1284), tone: "ng", tip: "IPS・アンチマルウェア・危険サイトでブロックした件数" },
+      { label: "Malware Files", value: n(37), tone: "warn", tip: "ダウンロード時にブロックしたマルウェアの数" },
+      { label: "Affected Users", value: n(19) || 1, tip: "脅威に関わったユーザー数" },
+      { label: "Critical", value: n(6), tone: "ng", tip: "重大度 Critical の検知数。優先して確認します" }]);
+    document.getElementById("c1").innerHTML = App.card("Threat Types", App.bars([
+      { label: "Phishing サイト", value: n(512), color: "var(--ng)", tip: "フィッシングサイトへのアクセスをブロック：" + n(512) + " 件\nメール訓練や URL フィルタの見直しの材料になります。" },
+      { label: "Malicious Domain", value: n(338), color: "var(--ng)" }, { label: "IPS：Exploit 試行", value: n(201), color: "#e0767b", tip: "脆弱性を狙った攻撃をブロック：" + n(201) + " 件" },
+      { label: "C&C 通信", value: n(96), color: "#e0767b", tip: "感染端末が外部の指令サーバと通信しようとした件数。端末の調査が必要です。" },
+      { label: "Malware Download", value: n(37), color: "var(--warn)" }, { label: "Crypto Mining", value: n(12), color: "var(--warn)" }]), { tip: "脅威の種類ごとの件数" });
+    const hrs = [], vals = [], full = [];
+    for (let i = 0; i < 25; i++) { const h = (new Date().getHours() - 24 + i + 48) % 24; hrs.push(i % 4 === 0 ? h + ":00" : ""); full.push(h + ":00 台"); vals.push(Math.round((20 + (h >= 9 && h <= 18 ? 50 : 0) + (i === 18 ? 140 : 0)) * k)); }
+    document.getElementById("c2").innerHTML = App.card("Threats over Time", App.lineChart([{ name: "ブロック数", data: vals, color: "#d6333b", fill: true }], { labels: hrs, full: full, unit: "件", title: "threats", note: function (i) { return i === 18 ? "急増：同じ時刻の Events を確認します（特定ユーザーへの集中がないか）。" : ""; } }));
+    document.getElementById("c3").innerHTML = App.card("Top Targeted Users", App.table(["User", "Threats", "Main Type"], [
+      ["yamada@example.co.jp", n(214), "C&C 通信", "C&C 通信が多い：端末の感染が疑われます。端末の隔離・スキャンを検討します。"], ["suzuki@example.co.jp", n(96), "Phishing", ""], ["vendor01@partner.example", n(58), "Malicious Domain", "社外の委託先端末。Client Connectivity の条件を確認します。"], ["sato@example.co.jp", n(31), "Phishing", ""]
+    ].map(function (r) { return { cls: "clickable", attr: 'onclick="location.href=\'events.html\'"', tip: "【" + r[0] + "】脅威 " + r[1] + " 件（主に " + r[2] + "）" + (r[3] ? "\n" + r[3] : "") + "\nクリックで Events を開きます。", cells: [App.esc(r[0]), '<span class="num">' + r[1] + "</span>", App.esc(r[2])] }; })), { flush: true });
+    document.getElementById("c4").innerHTML = App.card("Top Threat Signatures", App.table(["Signature", "Severity", "Count"], [
+      ["Known C&C communication", "Critical", n(96)], ["Log4j RCE attempt (CVE-2021-44228)", "High", n(81)], ["Suspicious DNS tunneling", "Medium", n(64)], ["Trojan.Generic (invoice_2026.zip)", "High", n(22)]
+    ].map(function (r) { return { tip: "【" + r[0] + "】重大度 " + r[1] + " ／ " + r[2] + " 件\nIPS / アンチマルウェアでブロック済みです。", cells: [App.esc(r[0]), App.sev(r[1]), '<span class="num">' + r[2] + "</span>"] }; })), { flush: true });
+  }
+  document.addEventListener("DOMContentLoaded", function () { document.getElementById("trWrap").innerHTML = App.timeRange("tr", "7d"); document.getElementById("tr").onchange = draw; draw(); });
+})();
+</script>
+
+</body>
+</html>

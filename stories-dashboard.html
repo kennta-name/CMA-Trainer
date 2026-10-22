@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stories Dashboard | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="stories-dashboard" data-crumb="Stories Dashboard">
+<main class="main" id="main">
+  <div class="page-title"><h1>Stories Dashboard</h1><span class="muted">XDR が関連するイベントをまとめた「ストーリー」（インシデント）の状況</span></div>
+  <div class="tip"><span><b>ストーリーとは：</b>バラバラのイベント（IPS 検知、DNS の異常、DLP など）を、同じ端末・同じ攻撃として1件にまとめたものです。Critical / High の未対応（Open）から順に、Stories Workbench で調査します。</span></div>
+  <div id="tiles"></div>
+  <div class="grid2"><div id="c1"></div><div id="c2"></div></div>
+  <div class="card"><div class="card-h"><h2>Stories</h2><a class="btn btn-primary" href="stories-workbench.html" style="margin-left:auto" data-tip="ストーリーを1件ずつ調査・対応する画面を開きます。">Workbench を開く</a></div><div id="tbl"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    const S = App.stories();
+    const c = function (f) { return S.filter(f).length; };
+    document.getElementById("tiles").innerHTML = App.tiles([{ label: "Open Stories", value: c(function (s) { return s.status !== "Closed"; }), tone: "ng", tip: "未完了（Open / In Progress）のストーリー" },
+      { label: "Critical / High", value: c(function (s) { return s.status !== "Closed" && (s.sev === "Critical" || s.sev === "High"); }), tone: "ng", tip: "優先して対応すべきストーリー" },
+      { label: "Unassigned", value: c(function (s) { return s.status !== "Closed" && !s.owner; }), tone: "warn", tip: "担当者が決まっていないストーリー" },
+      { label: "Closed (7d)", value: c(function (s) { return s.status === "Closed"; }), tone: "ok", tip: "7日以内に完了したストーリー" }]);
+    document.getElementById("c1").innerHTML = App.card("Severity", App.donut(["Critical", "High", "Medium", "Low"].map(function (v, i) { return { label: v, value: c(function (s) { return s.sev === v; }), color: ["#a51d24", "#d6333b", "#e58a00", "#9aa0a6"][i] }; }), String(S.length), "stories"));
+    document.getElementById("c2").innerHTML = App.card("Status", App.bars(["Open", "In Progress", "Closed"].map(function (v) { return { label: v, value: c(function (s) { return s.status === v; }), color: v === "Open" ? "var(--ng)" : v === "In Progress" ? "var(--warn)" : "var(--ok)", tip: v + "：" + { Open: "未着手", "In Progress": "調査中", Closed: "完了" }[v] }; })));
+    document.getElementById("tbl").innerHTML = App.table(["ID", "Title", "Severity", "Status", "User / Host", "Owner", "Created"], S.map(function (s) {
+      return { cls: "clickable", attr: 'data-id="' + s.id + '"', tip: "【" + s.id + "】" + s.title + "\n状態：" + s.status + (s.owner ? "（担当 " + s.owner + "）" : "（担当者なし）") + "\n推奨対応：" + s.rec + "\nクリックで Workbench を開きます。",
+        cells: ['<span class="mono">' + s.id + "</span>", App.esc(s.title), App.sev(s.sev), '<span class="badge ' + (s.status === "Closed" ? "b-ok" : s.status === "Open" ? "b-ng" : "b-warn") + '">' + s.status + "</span>", App.esc(s.user) + '<br><span class="muted">' + App.esc(s.host) + "</span>", App.esc(s.owner || "—"), App.fmtShort(s.t)] };
+    }));
+    document.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { App.db.set("selStory", tr.dataset.id); location.href = "stories-workbench.html"; }; });
+  });
+})();
+</script>
+
+</body>
+</html>

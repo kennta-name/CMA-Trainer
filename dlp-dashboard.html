@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DLP Dashboard | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="dlp-dashboard" data-crumb="DLP">
+<main class="main" id="main">
+  <div class="page-title"><h1>DLP</h1><span class="muted">機密データの持ち出し検知の状況</span></div>
+  <div class="tip"><span><b>見方：</b>DLP は誤検知が出やすいため、最初は「Monitor（記録のみ）」で傾向を見ます。同じ人・同じ宛先への検知が続く場合は、業務上必要か本人の上長に確認します。ルールの設定は Security > Data Protection です。</span></div>
+  <div id="tiles"></div>
+  <div class="grid2"><div id="c1"></div><div id="c2"></div></div>
+  <div class="card"><div class="card-h"><h2>Recent DLP Events</h2><a class="btn" href="data-protection.html" style="margin-left:auto">Data Protection を開く</a></div><div id="tbl"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("tiles").innerHTML = App.tiles([{ label: "DLP Matches", value: 143, tone: "warn", tip: "機密データのパターンに一致した件数（7日間）" }, { label: "Blocked", value: 12, tone: "ng", tip: "ブロックした件数" }, { label: "Monitored", value: 131, tip: "記録のみで通した件数（Monitor モード）" }, { label: "Users", value: 17, tip: "検知に関わったユーザー数" }]);
+    document.getElementById("c1").innerHTML = App.card("Data Types", App.bars([{ label: "クレジットカード番号", value: 52, color: "var(--ng)" }, { label: "マイナンバー", value: 18, color: "var(--ng)", tip: "マイナンバー：18 件\n法令上も扱いに注意が必要なデータです。" }, { label: "「社外秘」ラベル", value: 41, color: "var(--warn)" }, { label: "ソースコード", value: 21, color: "var(--warn)" }, { label: "個人情報（氏名＋電話）", value: 11, color: "var(--warn)" }]));
+    document.getElementById("c2").innerHTML = App.card("Destinations", App.donut([{ label: "個人のクラウドストレージ", value: 61, color: "#d6333b", tip: "Dropbox・個人 Google Drive など：61 件\n持ち出し経路として最も注意が必要です。" }, { label: "Web メール", value: 38, color: "#e58a00" }, { label: "生成AI", value: 27, color: "#7a5bc0", tip: "生成AI への入力：27 件。社内ルールの周知が必要です。" }, { label: "その他", value: 17, color: "#9aa0a6" }], "143", "matches"));
+    const ev = [["10/22 14:05", "tanaka@example.co.jp", "Dropbox", "クレジットカード番号", "Block"], ["10/22 11:41", "sato@example.co.jp", "ChatGPT", "「社外秘」ラベル", "Monitor"], ["10/22 10:12", "vendor01@partner.example", "WeTransfer", "ソースコード", "Block"], ["10/21 17:30", "suzuki@example.co.jp", "Gmail", "個人情報（氏名＋電話）", "Monitor"], ["10/21 15:02", "ito@example.co.jp", "Google Drive（個人）", "マイナンバー", "Monitor"]];
+    document.getElementById("tbl").innerHTML = App.table(["Time", "User", "Destination", "Data Type", "Action"], ev.map(function (e) {
+      return { tip: "【" + e[0] + "】" + e[1] + " が " + e[2] + " へ「" + e[3] + "」を含むデータを送信\n" + (e[4] === "Block" ? "ブロック済み。" : "記録のみ（通信は通っています）。業務上必要か確認し、必要なら Block に変更します。"), cells: [e[0], App.esc(e[1]), App.esc(e[2]), App.esc(e[3]), e[4] === "Block" ? App.actionBadge("Block") : '<span class="badge b-warn">Monitor</span>'] };
+    }));
+  });
+})();
+</script>
+
+</body>
+</html>

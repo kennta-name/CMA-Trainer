@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stories Workbench | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="stories-workbench" data-crumb="Stories Workbench">
+<main class="main" id="main">
+  <div class="page-title"><h1>Stories Workbench</h1><span class="muted">ストーリーを1件ずつ調査・対応する</span></div>
+  <div class="tip"><span><b>対応の流れ：</b>①左で選ぶ → ②［Assign to me］で担当になる → ③Indicators と Timeline で何が起きたか確認 → ④推奨対応を実施 → ⑤Verdict（判定）を選んで［Close Story］。</span></div>
+  <div class="card"><div class="wb"><aside id="list" aria-label="ストーリー一覧"></aside><section id="detail" style="min-width:0"></section></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  let S = App.stories();
+  let sel = App.db.get("selStory", S[0].id);
+  const me = App.trainee().email;
+  function save() { App.db.set("stories", S); }
+  function draw() {
+    document.getElementById("list").innerHTML = '<div class="story-list">' + S.map(function (s) {
+      return '<div class="story ' + (s.id === sel ? "on" : "") + '" data-id="' + s.id + '" tabindex="0" role="button" data-tip="' + App.esc("【" + s.id + "】" + s.title + "\n" + s.sev + " ／ " + s.status + "\nクリックで右に詳細を表示") + '"><b>' + App.esc(s.title) + '</b><small>' + s.id + " ・ " + App.fmtShort(s.t) + '</small><span>' + App.sev(s.sev) + ' <span class="badge ' + (s.status === "Closed" ? "b-ok" : s.status === "Open" ? "b-ng" : "b-warn") + '">' + s.status + "</span></span></div>";
+    }).join("") + "</div>";
+    const s = S.find(function (x) { return x.id === sel; }) || S[0];
+    document.getElementById("detail").innerHTML = '<div class="card-h"><h2>' + App.esc(s.title) + '</h2>' + App.sev(s.sev) +
+      '<div class="btn-group" style="margin-left:auto"><button class="btn" id="assign" ' + (s.owner === me || s.status === "Closed" ? "disabled" : "") + ' data-tip="自分を担当者にして、状態を In Progress にします。">Assign to me</button></div></div>' +
+      '<div class="card-b" style="display:grid;gap:16px">' +
+      '<dl class="kv" style="margin:0"><div><dt>Status</dt><dd>' + s.status + "</dd></div><div><dt>Owner</dt><dd>" + App.esc(s.owner || "—") + "</dd></div><div><dt>User</dt><dd>" + App.esc(s.user) + "</dd></div><div><dt>Host</dt><dd>" + App.esc(s.host) + "</dd></div></dl>" +
+      '<div><h3 style="font-size:14px;margin-bottom:6px">Indicators（根拠）</h3><ul style="margin:0;padding-left:18px;display:grid;gap:4px">' + s.ind.map(function (i) { return '<li data-tip="この事象がストーリーの根拠の1つです。">' + App.esc(i) + "</li>"; }).join("") + "</ul></div>" +
+      '<div><h3 style="font-size:14px;margin-bottom:8px">Timeline</h3><ul class="tl-list">' + s.tl.map(function (t) { return '<li class="' + (t[2] ? "ng" : "") + '" data-tip="' + App.esc(App.fmt(Date.now() - t[0] * 3600e3) + "：" + t[1]) + '"><span class="muted">' + App.fmtShort(Date.now() - t[0] * 3600e3) + "</span>　" + App.esc(t[1]) + "</li>"; }).join("") + "</ul></div>" +
+      '<div class="tip" style="margin:0"><span><b>推奨対応：</b>' + App.esc(s.rec) + "</span></div>" +
+      '<div class="btn-group"><label for="verdict" class="muted">Verdict</label><select class="select" id="verdict" style="width:auto" ' + (s.status === "Closed" ? "disabled" : "") + ' data-tip="調査結果の判定。Malicious＝悪意あり、Suspicious＝疑わしい、Benign＝問題なし。"><option value="">選択してください</option>' + ["Malicious", "Suspicious", "Benign"].map(function (v) { return "<option " + (s.verdict === v ? "selected" : "") + ">" + v + "</option>"; }).join("") + '</select>' +
+      '<button class="btn btn-primary" id="close" ' + (s.status === "Closed" ? "disabled" : "") + ' data-tip="判定を記録してストーリーを完了にします。">Close Story</button>' + (s.status === "Closed" ? '<button class="btn" id="reopen">Reopen</button>' : "") + "</div></div>";
+    document.querySelectorAll(".story").forEach(function (el) { const go = function () { sel = el.dataset.id; App.db.set("selStory", sel); draw(); }; el.onclick = go; el.onkeydown = function (e) { if (e.key === "Enter") go(); }; });
+    const a = document.getElementById("assign"); if (a) a.onclick = function () { s.owner = me; if (s.status === "Open") s.status = "In Progress"; save(); App.audit("Stories", "Assign", s.id, "Owner → " + me); App.toast("担当者になりました。", "ok"); draw(); };
+    document.getElementById("close").onclick = function () {
+      const v = document.getElementById("verdict").value;
+      if (!v) { App.toast("Verdict（判定）を選んでから Close してください。", "ng"); return; }
+      s.verdict = v; s.status = "Closed"; if (!s.owner) s.owner = me; save(); App.audit("Stories", "Close", s.id, "Verdict: " + v); App.toast(s.id + " を完了にしました（Verdict：" + v + "）。", "ok"); draw();
+    };
+    const r = document.getElementById("reopen"); if (r) r.onclick = function () { s.status = "In Progress"; save(); draw(); };
+  }
+  document.addEventListener("DOMContentLoaded", draw);
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What's New | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="administration" data-page="whats-new" data-crumb="What's New">
+<main class="main" id="main">
+  <div class="page-title"><h1>What's New</h1><span class="muted">研修サイトの更新内容</span></div>
+  <div class="tip"><span>実機の What's New には Cato の新機能・変更点が載ります。<b>画面やメニューの場所が変わることがある</b>ので、実機では定期的に確認し、手順書を更新しましょう。</span></div>
+  <div id="list"></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  const L = [["2026/10/22", "全メニューを操作可能に", ["Monitoring のダッシュボード（Security Threats・MITRE ATT&CK・Cloud Apps・DLP・SaaS Security API・SDP Users・Network Dashboard）", "Sites Overview・SDP Users Overview・App Analytics・Routing Table", "Best Practices（研修での設定内容を採点）、Stories Dashboard / Workbench", "Groups・DNS Settings・Device Posture・Threat Prevention・Application Control・Data Protection", "Assets > Device Inventory、Administration > License / API Keys", "拠点の Real-Time と High Availability、上部バーのアラート・通知・アプリ一覧", "研修ミッションを2つ追加（DNS 転送設定・Best Practices）"]],
+    ["2026/10/22", "マウスを乗せたときの説明を拡充", ["表の行・列見出し・グラフ・図にも、解説や現在の状態を表示"]],
+    ["2026/10/22", "操作要領（図解）と初回ガイドを追加", ["右上の「操作要領」から図解の手順書へ", "初回アクセス時に画面の見方を表示（右上の ? で再表示）"]]];
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("list").innerHTML = L.map(function (x) { return App.card(App.esc(x[1]), '<ul style="margin:0;padding-left:18px;display:grid;gap:4px">' + x[2].map(function (i) { return "<li>" + App.esc(i) + "</li>"; }).join("") + "</ul>", { right: '<span class="muted">' + x[0] + "</span>" }); }).join("");
+  });
+})();
+</script>
+
+</body>
+</html>

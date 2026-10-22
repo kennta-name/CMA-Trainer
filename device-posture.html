@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Device Posture | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="access" data-page="posture" data-crumb="Device Posture">
+<main class="main" id="main">
+  <div class="page-title"><h1>Device Posture</h1><span class="muted">端末の状態チェックとプロファイル</span></div>
+  <div class="tip"><span><b>仕組み：</b>① <b>Device Checks</b>（ウイルス対策が動いているか、OS が最新か等の個々のチェック）を作り、② それを組み合わせて <b>Profile</b> にし、③ Client Connectivity Policy のルールで Profile を指定します。Device Checks は Windows / macOS の Client のみ対応です。</span></div>
+  <div class="card"><div class="subtabs" role="tablist" id="tabs"><button role="tab" aria-selected="true" type="button" data-t="checks" data-tip="個々の端末チェックの一覧">Device Checks</button><button role="tab" aria-selected="false" type="button" data-t="profiles" data-tip="チェックを組み合わせたプロファイルの一覧">Device Posture Profiles</button></div>
+    <div class="pol-bar"><span class="muted" id="desc"></span><div class="btn-group" style="margin-left:auto"><button class="btn btn-primary" id="new" type="button">＋ New</button></div></div><div id="tbl"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  let D = App.db.get("posture", {
+    checks: [{ id: "k1", name: "Antivirus Running", type: "Anti-Malware", os: "Windows, macOS", cond: "Microsoft Defender / CrowdStrike が稼働中", pass: 92 },
+      { id: "k2", name: "OS Up to Date", type: "OS Version", os: "Windows", cond: "Windows 11 23H2 以降", pass: 78 },
+      { id: "k3", name: "Domain Joined", type: "Domain", os: "Windows", cond: "corp.example.local に参加", pass: 85 },
+      { id: "k4", name: "Disk Encryption", type: "Disk Encryption", os: "Windows, macOS", cond: "BitLocker / FileVault 有効", pass: 96 }],
+    profiles: [{ id: "p1", name: "Corporate Device (Domain Joined)", checks: ["Domain Joined", "Antivirus Running"] }, { id: "p2", name: "Antivirus Running", checks: ["Antivirus Running"] }, { id: "p3", name: "OS Up to Date", checks: ["OS Up to Date"] }, { id: "p4", name: "Disk Encryption", checks: ["Disk Encryption"] }] });
+  let tab = "checks";
+  function draw() {
+    document.querySelectorAll("#tabs button").forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.t === tab)); });
+    document.getElementById("desc").textContent = tab === "checks" ? "合格率が低いチェックは、Profile に入れると多くの人が接続できなくなります。" : "プロファイルの中のチェックは AND（すべて満たす必要あり）。";
+    if (tab === "checks") document.getElementById("tbl").innerHTML = App.table(["Name", "Type", "OS", "Condition", "Pass Rate"], D.checks.map(function (c) {
+      return { cls: "clickable", attr: 'data-i="' + c.id + '"', tip: "【" + c.name + "】" + c.cond + "\n合格率 " + c.pass + "%（不合格の端末は、この条件を使うルールに一致しません）" + (c.pass < 80 ? "\n合格率が低めです。いきなり必須にすると接続できない人が出ます。" : ""),
+        cells: [App.esc(c.name), App.esc(c.type), App.esc(c.os), App.esc(c.cond), '<div class="bar-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="bt"><i style="width:' + c.pass + "%;background:" + (c.pass < 80 ? "var(--warn)" : "var(--ok)") + '"></i></span><span class="bv">' + c.pass + "%</span></div>"] };
+    }));
+    else document.getElementById("tbl").innerHTML = App.table(["Profile", "Device Checks（AND）", "Used in"], D.profiles.map(function (p) {
+      const pol = App.db.get("pol.ccp", null), rules = pol ? pol.published.rules.filter(function (r) { return r.posture.indexOf(p.name) >= 0; }).map(function (r) { return r.name; }) : (p.id === "p1" || p.id === "p2" ? ["Corporate Devices"] : []);
+      return { cls: "clickable", attr: 'data-i="' + p.id + '"', tip: "【" + p.name + "】" + p.checks.join(" かつ ") + " を満たす端末\n使用中のルール：" + (rules.join("、") || "なし"), cells: [App.esc(p.name), App.chipsCell(p.checks), rules.length ? App.esc(rules.join(", ")) : '<span class="muted">—</span>'] };
+    }));
+    document.querySelectorAll("tr[data-i]").forEach(function (tr) { tr.onclick = function () { open(tr.dataset.i); }; });
+  }
+  function open(id) {
+    if (tab === "checks") {
+      const i = D.checks.findIndex(function (c) { return c.id === id; }), isNew = i < 0;
+      App.panel({ title: isNew ? "Add Device Check" : "Edit Device Check", model: isNew ? { name: "", type: "Anti-Malware", os: "Windows, macOS", cond: "", pass: 100 } : App.clone(D.checks[i]),
+        sections: [{ title: "General", open: true, fields: [{ key: "name", label: "Name", req: true }, { key: "type", label: "Type", type: "select", options: ["Anti-Malware", "OS Version", "Domain", "Disk Encryption", "Firewall", "Certificate", "Running Process"] }, { key: "os", label: "OS", type: "select", options: ["Windows, macOS", "Windows", "macOS"] }, { key: "cond", label: "Condition（条件）", placeholder: "例：Microsoft Defender が稼働中" }] }],
+        onApply: function (m) { if (!m.name.trim()) { App.toast("Name を入力してください。", "ng"); return false; } if (isNew) { m.id = App.uid(); D.checks.push(m); } else D.checks[i] = m; App.db.set("posture", D); App.audit("Device Posture", isNew ? "Create" : "Update", m.name, m.type); App.toast("保存しました。", "ok"); draw(); } });
+    } else {
+      const i = D.profiles.findIndex(function (p) { return p.id === id; }), isNew = i < 0;
+      App.panel({ title: isNew ? "Add Device Posture Profile" : "Edit Profile", model: isNew ? { name: "", checks: [] } : App.clone(D.profiles[i]),
+        sections: [{ title: "General", open: true, fields: [{ key: "name", label: "Name", req: true }, { key: "checks", label: "Device Checks（すべて満たす必要あり）", type: "picker", options: D.checks.map(function (c) { return c.name; }), anyLabel: "未選択" }] }],
+        onApply: function (m) { if (!m.name.trim() || !m.checks.length) { App.toast("Name と、1つ以上の Device Check を指定してください。", "ng"); return false; } if (isNew) { m.id = App.uid(); D.profiles.push(m); } else D.profiles[i] = m; App.db.set("posture", D); App.audit("Device Posture", isNew ? "Create" : "Update", m.name, m.checks.join(" + ")); App.toast("保存しました。Client Connectivity Policy のルールで使えます。", "ok", 5000); draw(); } });
+    }
+  }
+  document.addEventListener("DOMContentLoaded", function () { draw(); document.querySelectorAll("#tabs button").forEach(function (b) { b.onclick = function () { tab = b.dataset.t; draw(); }; }); document.getElementById("new").onclick = function () { open("__new"); }; });
+})();
+</script>
+
+</body>
+</html>

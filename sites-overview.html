@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sites Overview | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="sites-overview" data-crumb="Sites Overview">
+<main class="main" id="main">
+  <div class="page-title"><h1>Sites Overview</h1><span class="muted">全拠点の状態と回線品質を一覧で比較</span><div style="margin-left:auto" id="trWrap"></div></div>
+  <div class="tip"><span><b>使い方：</b>品質の悪い拠点を見つける画面です。列の見出しをクリックすると並べ替えできます。赤・黄色の値は要注意。行をクリックするとその拠点の Snapshot に移動します。</span></div>
+  <div id="tiles"></div>
+  <div class="card"><div class="card-h"><h2>Sites</h2><span class="muted" id="cnt"></span></div><div id="tbl"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  const sites = App.sites();
+  const rnd = App.rand(77);
+  const data = sites.map(function (s) {
+    const on = s.status === "Connected";
+    const util = on ? Math.round(30 + rnd() * 60) : 0;
+    return { s: s, util: util, loss: on ? +(rnd() * (s.id === "s2" ? 2.2 : 0.4)).toFixed(2) : null, rtt: on ? +(3 + rnd() * 6).toFixed(1) : null, jit: on ? +(0.5 + rnd() * (s.id === "s2" ? 9 : 2)).toFixed(1) : null,
+      top: on ? ["Microsoft 365", "Microsoft Teams", "Box", "Zoom"][Math.floor(rnd() * 4)] : "—", users: on ? Math.floor(20 + rnd() * 160) : 0 };
+  });
+  let sortKey = "name", asc = true;
+  function health(d) {
+    if (d.s.status !== "Connected") return ["ng", d.s.status === "Disconnected" ? "切断中" : "未接続"];
+    if (d.loss >= 1 || d.jit >= 5 || d.util >= 85) return ["warn", "品質注意"];
+    return ["ok", "良好"];
+  }
+  function draw() {
+    const c = { ok: 0, warn: 0, ng: 0 }; data.forEach(function (d) { c[health(d)[0]]++; });
+    document.getElementById("tiles").innerHTML = App.tiles([
+      { label: "Sites", value: data.length, tone: "brand", tip: "登録されている拠点の数" },
+      { label: "Healthy", value: c.ok, tone: "ok", tip: "接続中で、ロス・ジッタ・帯域使用率が正常な拠点" },
+      { label: "Degraded", value: c.warn, tone: "warn", tip: "接続中だが、ロス1%以上・ジッタ5ms以上・帯域85%以上のいずれかに当たる拠点" },
+      { label: "Disconnected / Pending", value: c.ng, tone: "ng", tip: "切断中または Socket 未接続の拠点" }]);
+    const val = function (d) { return { name: d.s.name, util: d.util, loss: d.loss == null ? -1 : d.loss, rtt: d.rtt == null ? -1 : d.rtt, jit: d.jit == null ? -1 : d.jit, users: d.users }[sortKey]; };
+    const rows = data.slice().sort(function (a, b) { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * (asc ? 1 : -1); });
+    const colr = function (v, warn) { return v == null ? '<span class="muted">—</span>' : v >= warn ? '<b style="color:var(--ng);font-weight:500">' + v + "</b>" : v; };
+    const head = [["name", "Site"], ["", "Health"], ["util", "Bandwidth Usage"], ["loss", "Packet Loss (%)"], ["rtt", "RTT (ms)"], ["jit", "Jitter (ms)"], ["users", "Active Hosts"], ["", "Top App"], ["", "PoP"]];
+    document.getElementById("tbl").innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + head.map(function (h) { return "<th" + (h[0] ? ' data-sort="' + h[0] + '" style="cursor:pointer" data-tip="クリックで「' + h[1] + '」の順に並べ替え"' : "") + ">" + h[1] + (sortKey === h[0] ? (asc ? " ▲" : " ▼") : "") + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      rows.map(function (d) {
+        const h = health(d);
+        const why = h[0] === "warn" ? [d.loss >= 1 ? "ロス " + d.loss + "%" : "", d.jit >= 5 ? "ジッタ " + d.jit + "ms" : "", d.util >= 85 ? "帯域 " + d.util + "%" : ""].filter(Boolean).join("・") : "";
+        const tip = "【" + d.s.name + "】" + h[1] + (why ? "（" + why + "）" : "") + "\n" + (h[0] === "ok" ? "回線品質は正常です。" : h[0] === "warn" ? "Network Analytics で時間帯ごとの推移を確認しましょう。" : "Snapshot で回線と接続履歴を確認しましょう。") + "\nクリックでこの拠点の Snapshot を開きます。";
+        return '<tr class="clickable" data-id="' + d.s.id + '" data-tip="' + App.esc(tip) + '"><td>' + App.esc(d.s.name) + '</td><td><span class="dot ' + h[0] + '"></span>' + h[1] + "</td><td>" +
+          (d.s.status === "Connected" ? '<div class="bar-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="bt"><i style="width:' + d.util + "%;background:" + (d.util >= 85 ? "var(--ng)" : "var(--brand)") + '"></i></span><span class="bv">' + d.util + "%</span></div>" : '<span class="muted">—</span>') +
+          '</td><td class="num">' + colr(d.loss, 1) + '</td><td class="num">' + colr(d.rtt, 10) + '</td><td class="num">' + colr(d.jit, 5) + '</td><td class="num">' + d.users + "</td><td>" + App.esc(d.top) + "</td><td>" + App.esc(d.s.pop) + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+    document.getElementById("cnt").textContent = data.length + " sites";
+    document.querySelectorAll("[data-sort]").forEach(function (th) { th.onclick = function () { if (sortKey === th.dataset.sort) asc = !asc; else { sortKey = th.dataset.sort; asc = sortKey === "name"; } draw(); }; });
+    document.querySelectorAll("#tbl tr[data-id]").forEach(function (tr) { tr.onclick = function () { App.db.set("selectedSite", tr.dataset.id); location.href = "site.html"; }; });
+  }
+  document.addEventListener("DOMContentLoaded", function () { document.getElementById("trWrap").innerHTML = App.timeRange(); document.getElementById("tr").onchange = function () { App.toast("期間を切り替えました（研修版では同じサンプルを表示します）。", "ok", 2500); }; draw(); });
+})();
+</script>
+
+</body>
+</html>

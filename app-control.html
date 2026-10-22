@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Application Control | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="security" data-page="casb" data-crumb="Application Control">
+<main class="main" id="main">
+  <div class="page-title"><h1>Application Control</h1><span class="muted">SaaS の中の操作（アップロード・共有など）を制御（CASB）</span></div>
+  <div class="tip"><span><b>Internet Firewall との違い：</b>Firewall は「そのサービスに入れるか」、Application Control は「サービスの中で何をしてよいか」を決めます。例：Dropbox の閲覧は許可、アップロードはブロック。動作には TLS Inspection が必要です。流れは New → Apply → Save → Publish。</span></div>
+  <div id="pol"></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+App.policy({
+  mount: "#pol", key: "casb", title: "Application Control", ruleNoun: "Application Control Rule", startRev: 2,
+  seed: function () { return { enabled: true, rules: [
+    { id: "a1", name: "Block upload to personal storage", enabled: true, source: [], app: ["App: Dropbox", "Google Drive（個人）"], activity: ["Upload"], action: "Block", track: true },
+    { id: "a2", name: "Prompt on Generative AI", enabled: true, source: ["Group: 全社員"], app: ["ChatGPT"], activity: ["Post / Prompt"], action: "Prompt", track: true }
+  ] }; },
+  newRule: function () { return { name: "", enabled: true, source: [], app: [], activity: [], action: "Block", track: true }; },
+  columns: [
+    { h: "Name", v: function (r) { return App.esc(r.name) + (r._new ? ' <span class="badge b-info">New</span>' : ""); } },
+    { h: "Source", v: function (r) { return App.chipsCell(r.source); } },
+    { h: "Application", v: function (r) { return App.chipsCell(r.app); } },
+    { h: "Activity", v: function (r) { return App.chipsCell(r.activity, "Any activity"); } },
+    { h: "Action", v: function (r) { return App.actionBadge(r.action); } }
+  ],
+  sections: [
+    { title: "Source", fields: [{ key: "source", label: "Source", type: "picker", options: App.opt.sources }] },
+    { title: "Application", fields: [{ key: "app", label: "Application", type: "picker", options: ["App: Dropbox", "Google Drive（個人）", "App: Box", "App: Microsoft 365", "ChatGPT", "WeTransfer", "LINE", "Notion"] }] },
+    { title: "Activity", fields: [{ key: "activity", label: "Activity（操作）", type: "picker", options: ["Upload", "Download", "Share", "Login", "Delete", "Post / Prompt"], anyLabel: "Any activity", help: "空欄はすべての操作が対象になります。" }] },
+    { title: "Action", fields: [{ key: "action", label: "Action", type: "select", options: ["Allow", "Block", "Prompt"] }], summary: function (m) { return m.action; } },
+    { title: "Track", fields: [{ key: "track", label: "Generate Events", type: "toggle" }], summary: function (m) { return m.track ? "Event" : "None"; } }
+  ],
+  implicitBottom: { tip: "【既定ルール：Allow】どのルールにも一致しない操作は許可されます。", cells: ["<b>Default</b>（implicit）", '<span class="muted">Any</span>', '<span class="muted">Any</span>', '<span class="muted">Any activity</span>', App.actionBadge("Allow")] }
+});
+</script>
+
+</body>
+</html>

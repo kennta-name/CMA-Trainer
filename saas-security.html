@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SaaS Security API | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="saas-security" data-crumb="SaaS Security API">
+<main class="main" id="main">
+  <div class="page-title"><h1>SaaS Security API</h1><span class="muted">SaaS と API 連携して、保存済みデータの公開設定などを確認</span></div>
+  <div class="tip"><span><b>何がわかる？</b>通信の検査（インライン）では見えない「すでにクラウドに置かれたファイル」の状態を、API で確認します。例：誰でも見られる公開リンクになっている機密ファイル。行の［リンクを無効化］で対処を練習できます（研修用の擬似操作）。</span></div>
+  <div id="tiles"></div>
+  <div class="grid2"><div id="c1"></div><div id="c2"></div></div>
+  <div class="card"><div class="card-h"><h2>Findings（要対応の項目）</h2></div><div id="tbl"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  let F = App.db.get("saasFindings", [
+    { id: 1, app: "Microsoft 365（OneDrive）", obj: "2026年度_予算案.xlsx", issue: "公開リンク（誰でも閲覧可）", owner: "sato@example.co.jp", sev: "High", done: false },
+    { id: 2, app: "Box", obj: "顧客一覧_最新.csv", issue: "社外ユーザーと共有", owner: "suzuki@example.co.jp", sev: "High", done: false },
+    { id: 3, app: "Microsoft 365（SharePoint）", obj: "設計書フォルダ", issue: "全社員に編集権限", owner: "yamada@example.co.jp", sev: "Medium", done: false },
+    { id: 4, app: "Box", obj: "invoice_2026.zip", issue: "マルウェアを含むファイル", owner: "tanaka@example.co.jp", sev: "Critical", done: false }]);
+  function draw() {
+    const open = F.filter(function (f) { return !f.done; });
+    document.getElementById("tiles").innerHTML = App.tiles([{ label: "Connected SaaS", value: 2, tone: "brand", tip: "API 連携している SaaS（Microsoft 365、Box）" }, { label: "Open Findings", value: open.length, tone: open.length ? "ng" : "ok", tip: "未対応の指摘" }, { label: "Public Links", value: open.filter(function (f) { return f.issue.indexOf("公開") === 0; }).length, tone: "warn", tip: "誰でも見られるリンクの数" }, { label: "Files Scanned", value: "48,210", tip: "API でスキャンしたファイル数" }]);
+    document.getElementById("c1").innerHTML = App.card("Connected Applications", App.table(["SaaS", "Status", "Last Scan"], [["Microsoft 365", "Connected", "10/22 13:00"], ["Box", "Connected", "10/22 12:40"], ["Salesforce", "Not connected", "—"]].map(function (r) { return { tip: r[0] + "：" + (r[1] === "Connected" ? "API 連携中。定期的にスキャンしています。" : "未連携。連携すると保存データも確認できます。"), cells: [r[0], r[1] === "Connected" ? '<span class="badge b-ok">Connected</span>' : '<span class="badge b-gray">Not connected</span>', r[2]] }; })), { flush: true });
+    document.getElementById("c2").innerHTML = App.card("Findings by Severity", App.donut([{ label: "Critical", value: open.filter(function (f) { return f.sev === "Critical"; }).length, color: "#a51d24" }, { label: "High", value: open.filter(function (f) { return f.sev === "High"; }).length, color: "#d6333b" }, { label: "Medium", value: open.filter(function (f) { return f.sev === "Medium"; }).length, color: "#e58a00" }], String(open.length), "open"));
+    document.getElementById("tbl").innerHTML = App.table(["SaaS", "Object", "Issue", "Owner", "Severity", ""], F.map(function (f) {
+      return { cls: f.done ? "disabled-rule" : "", tip: "【" + f.obj + "】" + f.issue + "（所有者：" + f.owner + "）\n" + (f.done ? "対処済み。" : f.sev === "Critical" ? "最優先で対処します。ファイルの隔離・削除を検討。" : "所有者に確認のうえ、共有設定を見直します。"),
+        cells: [App.esc(f.app), App.esc(f.obj), App.esc(f.issue), App.esc(f.owner), App.sev(f.sev), f.done ? '<span class="badge b-ok">Resolved</span>' : '<button class="btn" type="button" data-fix="' + f.id + '" data-tip="研修用の擬似操作：共有リンクを無効化（または隔離）して対処済みにします。">' + (f.sev === "Critical" ? "隔離する" : "リンクを無効化") + "</button>"] };
+    }));
+    document.querySelectorAll("[data-fix]").forEach(function (b) { b.onclick = function () { const f = F.find(function (x) { return x.id === +b.dataset.fix; }); App.modal({ title: "対処の確認", body: App.esc(f.obj) + " の「" + App.esc(f.issue) + "」に対処します。所有者（" + App.esc(f.owner) + "）への連絡も忘れずに。", ok: "実行", onOk: function () { f.done = true; App.db.set("saasFindings", F); App.audit("SaaS Security API", "Remediate", f.obj, f.issue); App.toast("対処しました（研修のため実際の SaaS は変更されません）。", "ok"); draw(); } }); }; });
+  }
+  document.addEventListener("DOMContentLoaded", draw);
+})();
+</script>
+
+</body>
+</html>

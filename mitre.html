@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MITRE ATT&CK | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="mitre" data-crumb="MITRE ATT&amp;CK">
+<main class="main" id="main">
+  <div class="page-title"><h1>MITRE ATT&amp;CK</h1><span class="muted">検知した攻撃を「攻撃の段階」に当てはめた表</span></div>
+  <div class="tip"><span><b>見方：</b>列が攻撃の段階（左ほど初期、右ほど被害に近い）、マスが具体的な手口です。色が濃いほど検知が多いことを表します。<b>右側の段階（C&amp;C・持ち出し）で検知がある</b>場合は、すでに侵入されている可能性があるため優先して調査します。マスにマウスを乗せると説明が出ます。</span></div>
+  <div class="card"><div class="card-h"><h2>Tactics &amp; Techniques</h2><span class="muted">Last 7 Days</span><div style="margin-left:auto;display:flex;gap:8px;font-size:12px" class="muted"><span class="mcell" style="padding:0 6px">0</span><span class="mcell h1" style="padding:0 6px">1-9</span><span class="mcell h2" style="padding:0 6px">10-49</span><span class="mcell h3" style="padding:0 6px">50+</span></div></div><div class="card-b"><div class="matrix" id="mx"></div></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  const M = [
+    ["初期アクセス", "Initial Access", [["Phishing", 512, "偽サイト・メールで認証情報を盗む手口。フィッシングサイトへのアクセスをブロックしています。"], ["Exploit Public-Facing App", 81, "公開サーバの脆弱性を狙う攻撃（Log4j など）。IPS でブロック。"], ["Drive-by Compromise", 4, "閲覧しただけで感染させる Web サイト。"]]],
+    ["実行", "Execution", [["User Execution", 22, "ユーザーにファイルを開かせる手口（請求書を装った zip など）。"], ["Command Interpreter", 0, "スクリプト実行。検知なし。"]]],
+    ["永続化", "Persistence", [["Scheduled Task", 0, "検知なし。"], ["Browser Extensions", 2, "不審なブラウザ拡張機能の通信。"]]],
+    ["防御回避", "Defense Evasion", [["Proxy / Anonymizer", 41, "匿名化サービスで監視をすり抜けようとする通信。Internet Firewall でブロック。"], ["Obfuscated Files", 6, "難読化されたファイル。"]]],
+    ["探索", "Discovery", [["Network Service Scan", 3, "社内ネットワークのスキャン。社内端末からなら要調査。"]]],
+    ["横展開", "Lateral Movement", [["Remote Services (RDP)", 14, "RDP での横展開の試行。WAN Firewall の「Block RDP from SDP Users」が止めています。"]]],
+    ["C&C", "Command and Control", [["Application Layer Protocol", 96, "感染端末が指令サーバと通信。該当端末の調査・隔離が必要です。"], ["DNS Tunneling", 64, "DNS を使った隠れた通信。"]]],
+    ["持ち出し", "Exfiltration", [["Exfiltration to Cloud Storage", 9, "個人のクラウドストレージへの大量アップロード。DLP・Application Control で確認します。"]]]
+  ];
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("mx").innerHTML = M.map(function (c, ci) {
+      return '<div class="mcol"><h4 data-tip="' + App.esc("【" + c[1] + "】攻撃の段階 " + (ci + 1) + "/8。" + (ci >= 6 ? "この段階で検知があれば、すでに侵入されている可能性があります。" : "攻撃の初期段階です。")) + '">' + c[0] + '<br><span style="opacity:.7;font-weight:400">' + c[1] + "</span></h4>" +
+        c[2].map(function (t) { const h = t[1] >= 50 ? "h3" : t[1] >= 10 ? "h2" : t[1] > 0 ? "h1" : ""; return '<div class="mcell ' + h + '" data-tip="' + App.esc("【" + t[0] + "】検知 " + t[1] + " 件\n" + t[2]) + '">' + App.esc(t[0]) + "<b>" + t[1] + "</b></div>"; }).join("") + "</div>";
+    }).join("");
+  });
+})();
+</script>
+
+</body>
+</html>

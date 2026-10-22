@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Data Protection | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="security" data-page="dlp" data-crumb="Data Protection">
+<main class="main" id="main">
+  <div class="page-title"><h1>Data Protection</h1><span class="muted">機密データの持ち出しを検知・ブロック（DLP）</span></div>
+  <div class="tip"><span><b>はじめは Monitor：</b>DLP は誤検知が出やすいので、新しいルールはまず Action を <b>Monitor</b>（記録のみ）にし、Monitoring > DLP で1〜2週間傾向を見てから Block に変えます。TLS Inspection が必要です。流れは New → Apply → Save → Publish。</span></div>
+  <div id="pol"></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+App.policy({
+  mount: "#pol", key: "dlp", title: "Data Protection", ruleNoun: "DLP Rule", startRev: 2,
+  seed: function () { return { enabled: true, rules: [
+    { id: "d1", name: "Credit Card to personal storage", enabled: true, source: [], app: ["Personal Cloud Storage"], profile: ["Credit Card Number"], action: "Block" },
+    { id: "d2", name: "Confidential label monitoring", enabled: true, source: ["Group: 全社員"], app: ["Any SaaS"], profile: ["「社外秘」ラベル"], action: "Monitor" },
+    { id: "d3", name: "My Number monitoring", enabled: true, source: [], app: ["Web Mail", "Personal Cloud Storage"], profile: ["マイナンバー"], action: "Monitor" }
+  ] }; },
+  newRule: function () { return { name: "", enabled: true, source: [], app: [], profile: [], action: "Monitor" }; },
+  columns: [
+    { h: "Name", v: function (r) { return App.esc(r.name) + (r._new ? ' <span class="badge b-info">New</span>' : ""); } },
+    { h: "Source", v: function (r) { return App.chipsCell(r.source); } },
+    { h: "Destination", v: function (r) { return App.chipsCell(r.app); } },
+    { h: "Data Profile", v: function (r) { return App.chipsCell(r.profile); } },
+    { h: "Action", v: function (r) { return r.action === "Monitor" ? '<span class="badge b-warn">Monitor</span>' : App.actionBadge(r.action); } }
+  ],
+  sections: [
+    { title: "Source", fields: [{ key: "source", label: "Source", type: "picker", options: App.opt.sources }] },
+    { title: "Destination", fields: [{ key: "app", label: "Destination", type: "picker", options: ["Personal Cloud Storage", "Web Mail", "Generative AI", "Any SaaS", "App: Box"] }] },
+    { title: "Data Profile", fields: [{ key: "profile", label: "Data Profile（検知するデータの種類）", type: "picker", options: ["Credit Card Number", "マイナンバー", "「社外秘」ラベル", "Source Code", "個人情報（氏名＋電話）"] }] },
+    { title: "Action", fields: [{ key: "action", label: "Action", type: "select", options: ["Monitor", "Block", "Allow"], help: "最初は Monitor（記録のみ）がおすすめです。" }], summary: function (m) { return m.action; } }
+  ],
+  implicitBottom: { tip: "【既定ルール：Allow】どの DLP ルールにも一致しないデータは通常どおり送信されます。", cells: ["<b>Default</b>（implicit）", '<span class="muted">Any</span>', '<span class="muted">Any</span>', '<span class="muted">—</span>', App.actionBadge("Allow")] }
+});
+</script>
+
+</body>
+</html>

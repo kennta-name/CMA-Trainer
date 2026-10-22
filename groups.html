@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Groups | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="network" data-page="groups" data-crumb="Groups">
+<main class="main" id="main">
+  <div class="page-title"><h1>Groups</h1><span class="muted">拠点・ホスト・アドレスをまとめた「グループ」</span></div>
+  <div class="tip"><span><b>なぜ使う？</b>ルールの Source / Destination に拠点やIPを1つずつ書く代わりにグループを使うと、拠点が増えたときにグループへ追加するだけで全ルールに反映されます。行にマウスを乗せるとメンバーと、どのルールで使われているかが出ます。</span></div>
+  <div class="card">
+    <div class="pol-bar"><div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search groups" aria-label="グループを検索"></div><div class="btn-group" style="margin-left:auto"><button class="btn btn-primary" id="new" type="button">＋ New</button></div></div>
+    <div id="tbl"></div>
+  </div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  let G = App.db.get("groups", [
+    { id: "g1", name: "Branch Sites", desc: "全営業所", members: ["Site: JP-OSA-BR01"], used: ["WAN Firewall：Branch to ERP on AWS"] },
+    { id: "g2", name: "Core Servers", desc: "基幹サーバ群", members: ["Host: FileServer (10.10.0.20)", "Host: ERP (172.16.1.10)"], used: ["WAN Firewall：Users to FileServer (SMB)"] },
+    { id: "g3", name: "Cloud VPCs", desc: "クラウド環境", members: ["Site: AWS-TKY-VPC"], used: [] }]);
+  let flash = null;
+  function draw() {
+    const q = document.getElementById("q").value.trim().toLowerCase();
+    document.getElementById("tbl").innerHTML = App.table(["Name", "Description", "Members", "Used in"], G.filter(function (g) { return !q || (g.name + g.desc + g.members.join()).toLowerCase().includes(q); }).map(function (g) {
+      return { cls: "clickable" + (g.id === flash ? " flash" : ""), attr: 'data-id="' + g.id + '"', tip: "【" + g.name + "】" + g.desc + "\nメンバー：" + (g.members.join("、") || "なし") + "\n使用中のルール：" + (g.used.join("、") || "なし（削除しても影響なし）") + "\nクリックで編集。",
+        cells: [App.esc(g.name), App.esc(g.desc), App.chipsCell(g.members, "なし"), g.used.length ? g.used.length + " rules" : '<span class="muted">—</span>'] };
+    }));
+    flash = null;
+    document.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { open(G.findIndex(function (g) { return g.id === tr.dataset.id; })); }; });
+  }
+  function open(i) {
+    const isNew = i < 0;
+    App.panel({ title: isNew ? "Add Group" : "Edit Group", model: isNew ? { name: "", desc: "", members: [] } : App.clone(G[i]),
+      sections: [{ title: "General", open: true, fields: [{ key: "name", label: "Name", req: true, placeholder: "例：Tokyo Sites" }, { key: "desc", label: "Description" }] },
+        { title: "Members", open: true, fields: [{ key: "members", label: "Members", type: "picker", options: App.opt.destinations, anyLabel: "メンバーなし", help: "拠点・ホスト・リモートユーザーを追加します。" }] }],
+      onApply: function (m) {
+        if (!m.name.trim()) { App.toast("Name を入力してください。", "ng"); return false; }
+        if (isNew) { m.id = App.uid(); m.used = []; G.push(m); } else G[i] = m;
+        flash = m.id; App.db.set("groups", G); App.audit("Groups", isNew ? "Create" : "Update", m.name, m.members.length + " members"); App.toast("グループを保存しました。", "ok"); draw();
+      },
+      onDelete: isNew ? null : function () {
+        if (G[i].used.length) { App.toast("このグループはルールで使用中のため削除できません。先にルールから外してください。", "ng", 6000); return; }
+        App.audit("Groups", "Delete", G[i].name, ""); G.splice(i, 1); App.db.set("groups", G); App.closePanel(); draw(); App.toast("削除しました。", "ok");
+      } });
+  }
+  document.addEventListener("DOMContentLoaded", function () { draw(); document.getElementById("q").oninput = draw; document.getElementById("new").onclick = function () { open(-1); }; });
+})();
+</script>
+
+</body>
+</html>

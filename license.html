@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>License | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="administration" data-page="license" data-crumb="License">
+<main class="main" id="main">
+  <div class="page-title"><h1>License</h1><span class="muted">契約内容と使用状況</span></div>
+  <div class="tip"><span><b>確認ポイント：</b>使用率が 90% を超えている項目は追加購入を検討します。契約していないサービス（Not Licensed）の画面は、実機では使えないか表示が限定されます。契約の変更は販売代理店に依頼します。</span></div>
+  <div id="tiles"></div>
+  <div class="card"><div class="card-h"><h2>Site Licenses</h2></div><div id="t1"></div></div>
+  <div class="card"><div class="card-h"><h2>Security Services</h2></div><div id="t2"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    const sites = App.sites(), sdp = App.users().filter(function (u) { return u.sdp; }).length;
+    const pooled = sites.reduce(function (a, s) { return a + (parseInt(String(s.license).replace(/\D+/g, " ").trim().split(" ").pop(), 10) || 0); }, 0);
+    document.getElementById("tiles").innerHTML = App.tiles([{ label: "Contract End", value: "2027/03/31", tone: "brand", tip: "契約終了日。更新の3か月前に販売代理店と調整します。" }, { label: "Sites", value: sites.length + " / 5", tip: "サイトライセンスの使用数 / 契約数" }, { label: "Site Bandwidth", value: pooled + " / 1,000 Mbps", tip: "割り当て済みの拠点帯域の合計 / 契約帯域" }, { label: "SDP Users", value: sdp + " / 10", tone: sdp >= 9 ? "warn" : "", tip: "SDP ライセンスの割り当て数 / 契約数" }, { label: "Allocated IPs", value: App.db.get("ipalloc", []).length + " / 4", tip: "固定送信元 IP の割り当て数 / 上限" }]);
+    document.getElementById("t1").innerHTML = App.table(["Site", "License", "Region", "Assigned"], sites.map(function (s) { return { tip: s.name + "：" + s.license + " を割り当て済み", cells: [App.esc(s.name), App.esc(s.license), "Japan", '<span class="badge b-ok">Assigned</span>'] }; }));
+    document.getElementById("t2").innerHTML = App.table(["Service", "Status", "Note"], [["Threat Prevention（IPS・Anti-Malware）", 1, ""], ["Next-Gen Anti-Malware", 1, ""], ["CASB（Application Control）", 1, ""], ["DLP（Data Protection）", 1, ""], ["SaaS Security API", 1, "Microsoft 365・Box を連携中"], ["RBI（Remote Browser Isolation）", 0, "未契約"], ["XDR / MDR", 1, "MDR は販売代理店の SOC が対応"]].map(function (r) {
+      return { tip: r[0] + "：" + (r[1] ? "契約済み" : "未契約。必要なら販売代理店に相談します。") + (r[2] ? "\n" + r[2] : ""), cells: [r[0], r[1] ? '<span class="badge b-ok">Licensed</span>' : '<span class="badge b-gray">Not Licensed</span>', '<span class="muted">' + r[2] + "</span>"] };
+    }));
+  });
+})();
+</script>
+
+</body>
+</html>

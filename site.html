@@ -31,8 +31,8 @@
   const site = sites.find(function (s) { return s.id === id; }) || sites[0];
   let view = "snapshot";
   const V = [
-    ["SITE MONITORING", [["snapshot", "Snapshot", "target"], ["analytics", "Network Analytics", "bars"], ["realtime", "Real-Time", "gauge", true], ["events", "Events", "list", false, "events.html"]]],
-    ["SITE CONFIGURATION", [["general", "General", "site"], ["socket", "Socket", "socket"], ["networks", "Networks", "route"], ["ha", "High Availability", "nodes", true]]]
+    ["SITE MONITORING", [["snapshot", "Snapshot", "target"], ["analytics", "Network Analytics", "bars"], ["realtime", "Real-Time", "gauge"], ["events", "Events", "list", false, "events.html"]]],
+    ["SITE CONFIGURATION", [["general", "General", "site"], ["socket", "Socket", "socket"], ["networks", "Networks", "route"], ["ha", "High Availability", "nodes"]]]
   ];
   App.customSidebar = function () {
     return '<a class="side-item" href="sites.html">' + App.icon("back") + "All Sites</a>" +
@@ -64,7 +64,22 @@
     }).join("");
   }
 
+  let rtTimer = null, anaRange = "24h";
   const render = {
+    realtime: function () {
+      return header("Real-Time") + (site.status !== "Connected" ? '<div class="card"><div class="card-b muted">この拠点は接続していないため、リアルタイムのデータはありません。</div></div>' :
+        '<div class="card"><div class="card-h"><h2>Throughput（直近60秒）</h2><span class="live">LIVE</span><span class="muted" id="rtNow"></span><button class="btn" id="rtPause" type="button" style="margin-left:auto" data-tip="更新を一時停止／再開します。">Pause</button></div><div class="card-b" id="rtChart"></div></div>' +
+        '<div class="grid2"><div class="card" style="margin-top:0"><div class="card-h"><h2>Top Hosts（いま通信量が多い端末）</h2></div><div id="rtHosts"></div></div><div class="card" style="margin-top:0"><div class="card-h"><h2>Top Applications</h2></div><div class="card-b" id="rtApps"></div></div></div>' +
+        '<div class="tip"><span>Real-Time は「いま遅い」と言われたときに、どの端末・アプリが帯域を使っているかをその場で確認する画面です。1秒ごとに更新されます。</span></div>');
+    },
+    ha: function () {
+      if (!site.ha) return header("High Availability") + '<div class="card"><div class="card-b"><p><b>この拠点は HA（Socket 2台構成）ではありません。</b></p><p class="muted" style="margin-top:6px">Socket が故障すると拠点の通信が止まります。本社・データセンターなど止められない拠点は、Socket を2台にして HA を構成します（同じ型番の Socket をもう1台追加し、LAN・WAN を両方に接続）。</p></div></div>';
+      const ha = App.db.get("ha." + site.id, { primary: "CS-X17-0A1B2C", secondary: "CS-X17-0A1B2D", last: Date.now() - 41 * 864e5 });
+      return header("High Availability") + '<div class="grid2">' +
+        App.card("Primary（Active）", '<p class="mono" style="font-size:15px">' + ha.primary + '</p><p><span class="badge b-ok">Active</span> 現在すべての通信を処理中</p><p class="muted" style="margin-top:6px">Web Management IP：10.10.0.2</p>', { tip: "Active 側の Socket。通常はこちらが通信を処理します。" }) +
+        App.card("Secondary（Standby）", '<p class="mono" style="font-size:15px">' + ha.secondary + '</p><p><span class="badge b-gray">Ready</span> 待機中（設定は同期済み）</p><p class="muted" style="margin-top:6px">Web Management IP：10.10.0.3</p>', { tip: "Standby 側の Socket。Primary が故障すると自動で引き継ぎます。" }) +
+        "</div>" + App.card("Failover Test", '<p>最後の切替：<b>' + App.fmt(ha.last) + '</b></p><p class="muted" style="margin:6px 0 12px">定期的に（例：半年に1回）、業務時間外に切替試験を行い、本当に引き継げるか確認します。切替中は数秒〜数十秒、通信が途切れます。</p><button class="btn btn-primary" id="haTest" type="button" data-tip="研修用の擬似操作：Primary と Secondary を入れ替えます。">Test Failover</button>');
+    },
     snapshot: function () {
       if (site.id === "s3" || site.status === "Disconnected") App.complete("topo_site");
       const since = site.status === "Connected" ? Math.floor((Date.now() - site.connectedSince) / 864e5) + "d " + Math.floor(((Date.now() - site.connectedSince) % 864e5) / 3600e3) + "h" : "—";
@@ -83,14 +98,19 @@
     },
     analytics: function () {
       const rnd = App.rand(site.id.charCodeAt(1) * 77);
-      const N = 25, labels = [], full = [];
+      const RG = anaRange;
+      const N = RG === "1h" ? 31 : RG === "7d" ? 29 : 25, labels = [], full = [], hourOf = [];
       const now = new Date();
-      for (let i = 0; i < N; i++) { const h = (now.getHours() - (N - 1 - i) + 48) % 24; labels.push(i % 4 === 0 ? h + ":00" : ""); full.push(h + ":00 台"); }
+      for (let i = 0; i < N; i++) {
+        if (RG === "1h") { const t = new Date(now - (N - 1 - i) * 120e3); hourOf.push(t.getHours()); labels.push(i % 5 === 0 ? t.getHours() + ":" + String(t.getMinutes()).padStart(2, "0") : ""); full.push(t.getHours() + ":" + String(t.getMinutes()).padStart(2, "0")); }
+        else if (RG === "7d") { const t = new Date(now - (N - 1 - i) * 6 * 3600e3); hourOf.push(t.getHours()); labels.push(i % 4 === 0 ? (t.getMonth() + 1) + "/" + t.getDate() : ""); full.push((t.getMonth() + 1) + "/" + t.getDate() + " " + t.getHours() + ":00 台"); }
+        else { const h = (now.getHours() - (N - 1 - i) + 48) % 24; hourOf.push(h); labels.push(i % 4 === 0 ? h + ":00" : ""); full.push(h + ":00 台"); }
+      }
       const cap = site.wan1.down;
       const down = [], up = [], loss = [], lastMile = [], lat = [], jit = [];
       const cut = site.status === "Disconnected" ? N - 3 : N + 1;
       for (let i = 0; i < N; i++) {
-        const h = (now.getHours() - (N - 1 - i) + 48) % 24;
+        const h = hourOf[i];
         const work = h >= 9 && h <= 18 ? 1 : 0.25;
         const off = i >= cut;
         down.push(off ? 0 : Math.round(cap * (0.18 + 0.55 * work) * (0.8 + rnd() * 0.4)));
@@ -112,7 +132,7 @@
           '<div style="padding:4px 10px 6px">' + App.lineChart(series, { labels: labels, full: full, unit: unit, title: t, note: function (i) { return judge(kind, i); } }) + "</div>" + (note ? '<p class="muted" style="padding:0 14px 12px;font-size:12px">' + note + "</p>" : "") + "</div>";
       };
       return header("Network Analytics") +
-        '<div class="btn-group" style="margin-bottom:12px"><span class="muted">Time Range</span><div class="range"><button aria-pressed="false" data-na="1 Hour">1 Hour</button><button aria-pressed="true">24 Hours</button><button aria-pressed="false" data-na="7 Days">7 Days</button></div></div>' +
+        '<div class="btn-group" style="margin-bottom:12px"><span class="muted">Time Range</span><div class="range">' + [["1h", "1 Hour"], ["24h", "24 Hours"], ["7d", "7 Days"]].map(function (r) { return '<button type="button" data-range="' + r[0] + '" aria-pressed="' + (anaRange === r[0]) + '" data-tip="表示期間を ' + r[1] + ' に切り替えます。">' + r[1] + "</button>"; }).join("") + '</div></div>' +
         '<div class="charts">' +
         card("Throughput（WAN1）", [{ name: "Down", data: down, color: "#1f8a5b", fill: true }, { name: "Up", data: up, color: "#6d86a2" }], "Mbps", [["Downstream", "#1f8a5b"], ["Upstream", "#6d86a2"]], "契約帯域（" + cap + " Mbps）に張り付いている時間が長ければ増速を検討します。", "tp") +
         card("Packet Loss", [{ name: "トンネル内", data: loss, color: "#d6333b" }, { name: "ラストマイル", data: lastMile, color: "#e58a00" }], "%", [["Inside tunnel", "#d6333b"], ["Last Mile（ISP側）", "#e58a00"]], "14時台にロスが増えています。Last Mile も高いため、回線事業者側の品質低下が疑われます。", "loss") +
@@ -147,8 +167,31 @@
     }
   };
 
+  function rtStart() {
+    clearInterval(rtTimer);
+    if (view !== "realtime" || site.status !== "Connected") return;
+    const rnd = App.rand(Date.now() % 9973), dn = [], up = [], lab = [], full = [];
+    for (let i = 0; i < 60; i++) { dn.push(Math.round(120 + rnd() * 60)); up.push(Math.round(40 + rnd() * 20)); }
+    let paused = false;
+    const hosts = [["PC-SL-0112（suzuki）", "Microsoft Teams"], ["PC-IT-0231（yamada）", "Windows Update"], ["MAC-SL-0057（tanaka）", "Box"], ["PC-AC-0088（sato）", "YouTube"], ["PRN-01", "—"]];
+    function tick() {
+      if (paused) return;
+      dn.shift(); up.shift(); dn.push(Math.round(Math.max(20, dn[dn.length - 1] + (rnd() - 0.48) * 40))); up.push(Math.round(Math.max(8, up[up.length - 1] + (rnd() - 0.5) * 12)));
+      lab.length = 0; full.length = 0; for (let i = 0; i < 60; i++) { lab.push(i % 15 === 0 ? "-" + (60 - i) + "s" : ""); full.push((60 - i) + " 秒前"); }
+      const el = document.getElementById("rtChart"); if (!el) { clearInterval(rtTimer); return; }
+      el.innerHTML = App.lineChart([{ name: "Down", data: dn, color: "#1f8a5b", fill: true }, { name: "Up", data: up, color: "#6d86a2" }], { labels: lab, full: full, unit: "Mbps", title: "realtime", note: function (i) { return Math.round(dn[i] / site.wan1.down * 100) + "% of " + site.wan1.down + " Mbps"; } });
+      document.getElementById("rtNow").textContent = "Down " + dn[59] + " / Up " + up[59] + " Mbps（" + new Date().toLocaleTimeString() + "）";
+      const hv = hosts.map(function (h, i) { return [h[0], h[1], Math.round(dn[59] * [0.34, 0.27, 0.18, 0.14, 0.02][i] * (0.85 + rnd() * 0.3))]; });
+      document.getElementById("rtHosts").innerHTML = App.table(["Host", "Main App", "Mbps"], hv.map(function (h) { return { tip: h[0] + " がいま " + h[2] + " Mbps 使用中（主に " + h[1] + "）" + (h[1] === "YouTube" ? "\n業務外の動画です。" : h[1] === "Windows Update" ? "\n更新の一斉配信が帯域を使っています。" : ""), cells: [App.esc(h[0]), App.esc(h[1]), '<span class="num">' + h[2] + "</span>"] }; }));
+      document.getElementById("rtApps").innerHTML = App.bars([["Microsoft Teams", 0.31], ["Windows Update", 0.27], ["Box", 0.18], ["YouTube", 0.14], ["Other", 0.10]].map(function (a) { const v = Math.round(dn[59] * a[1]); return { label: a[0], value: v, text: v + " Mbps", color: a[0] === "YouTube" ? "var(--warn)" : "var(--brand)" }; }));
+    }
+    tick(); rtTimer = setInterval(tick, 1000);
+    const pb = document.getElementById("rtPause");
+    if (pb) pb.onclick = function () { paused = !paused; pb.textContent = paused ? "Resume" : "Pause"; };
+  }
   function show(v) {
     view = v;
+    clearInterval(rtTimer);
     document.getElementById("view").innerHTML = render[v]();
     document.querySelectorAll("[data-view]").forEach(function (b) { b.classList.toggle("active", b.dataset.view === v); });
     const w = document.getElementById("webui");
@@ -158,6 +201,17 @@
         App.pop(b, [{ label: "Socket WebUI", run: webui }, { label: "Reboot", run: function () { App.toast("研修版のため再起動は行いません。実機では通信が数分途切れます。", "warn"); } }, { label: "Replace Socket (RMA)", run: function () { App.toast("RMA交換：交換品のシリアルをこのサイトに紐づけ直すと、元の設定で動きます。", "ok", 6000); } }]);
       };
     });
+    rtStart();
+    document.querySelectorAll("[data-range]").forEach(function (b) { b.onclick = function () { anaRange = b.dataset.range; show("analytics"); }; });
+    const ht = document.getElementById("haTest");
+    if (ht) ht.onclick = function () {
+      App.modal({ title: "Test Failover", body: "Primary と Secondary を入れ替えます。実機では数秒〜数十秒、拠点の通信が途切れます。業務時間外に実施してください。", ok: "実行", onOk: function () {
+        const ha = App.db.get("ha." + site.id, { primary: "CS-X17-0A1B2C", secondary: "CS-X17-0A1B2D", last: 0 });
+        App.db.set("ha." + site.id, { primary: ha.secondary, secondary: ha.primary, last: Date.now() });
+        App.audit("Sites", "HA Failover Test", site.name, ha.secondary + " が Active に");
+        App.toast("切替が完了しました。" + ha.secondary + " が Active になりました。", "ok"); show("ha");
+      } });
+    };
     const gs = document.getElementById("gSave");
     if (gs) gs.onclick = function () {
       const nm = document.getElementById("gName").value.trim();

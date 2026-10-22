@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Device Inventory | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="assets" data-page="device-inventory" data-crumb="Device Inventory">
+<main class="main" id="main">
+  <div class="page-title"><h1>Device Inventory</h1><span class="muted">Cato が把握している端末の一覧</span></div>
+  <div class="tip"><span><b>使い方：</b>会社が把握していない端末（私物・委託先）や、ポスチャ（端末の状態）を満たしていない端末を見つけます。行にマウスを乗せると、どのチェックで不合格かが出ます。</span></div>
+  <div id="tiles"></div>
+  <div class="card"><div class="pol-bar"><div class="search"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input class="input" id="q" placeholder="Search devices（ホスト名・ユーザー・OS）" aria-label="端末を検索"></div>
+    <select class="select" id="flt" style="width:auto" aria-label="絞り込み" data-tip="ポスチャの結果で絞り込みます。"><option value="">All</option><option value="ok">Compliant</option><option value="ng">Non-compliant</option><option value="un">Unmanaged</option></select></div><div id="tbl"></div></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  const DEV = [
+    ["PC-SL-0112", "suzuki@example.co.jp", "Windows 11 23H2", "Corporate", "ok", "", "JP-TKY-HQ"], ["MAC-SL-0057", "tanaka@example.co.jp", "macOS 15", "Corporate", "ok", "", "Remote"],
+    ["PC-IT-0231", "yamada@example.co.jp", "Windows 11 23H2", "Corporate", "ng", "C&C 通信のストーリーあり（調査中）", "JP-TKY-HQ"], ["PC-AC-0088", "sato@example.co.jp", "Windows 10 22H2", "Corporate", "ng", "OS Up to Date：不合格（Windows 10）", "Remote"],
+    ["IPHONE-TK", "takahashi@example.co.jp", "iOS 18", "Corporate", "ok", "", "Remote"], ["VENDOR-LT01", "vendor01@partner.example", "Windows 10 21H2", "Unmanaged", "un", "Antivirus Running：不合格 ／ 会社の管理外の端末", "Remote"],
+    ["PRN-OSA-01", "—", "Embedded", "IoT", "un", "プリンタ（Client なし）。拠点のネットワーク上で検出", "JP-OSA-BR01"], ["CAM-TKY-03", "—", "Embedded", "IoT", "un", "監視カメラ。拠点のネットワーク上で検出", "JP-TKY-HQ"]];
+  function draw() {
+    const q = document.getElementById("q").value.trim().toLowerCase(), f = document.getElementById("flt").value;
+    const c = function (k) { return DEV.filter(function (d) { return d[4] === k; }).length; };
+    document.getElementById("tiles").innerHTML = App.tiles([{ label: "Devices", value: DEV.length, tone: "brand", tip: "検出した端末の総数" }, { label: "Compliant", value: c("ok"), tone: "ok", tip: "ポスチャ条件を満たす会社端末" }, { label: "Non-compliant", value: c("ng"), tone: "ng", tip: "条件を満たさない、または調査中の会社端末" }, { label: "Unmanaged / IoT", value: c("un"), tone: "warn", tip: "会社の管理外の端末、プリンタやカメラなど" }]);
+    document.getElementById("tbl").innerHTML = App.table(["Hostname", "User", "OS", "Type", "Posture", "Location"], DEV.filter(function (d) { return (!f || d[4] === f) && (!q || d.join(" ").toLowerCase().includes(q)); }).map(function (d) {
+      const st = { ok: '<span class="badge b-ok">Compliant</span>', ng: '<span class="badge b-ng">Non-compliant</span>', un: '<span class="badge b-warn">Unmanaged</span>' }[d[4]];
+      return { tip: "【" + d[0] + "】" + d[2] + " ／ " + d[3] + "\n" + (d[4] === "ok" ? "ポスチャ条件をすべて満たしています。" : d[5]) + (d[4] === "ng" ? "\n対応：端末の更新・調査を利用者に依頼します。" : d[3] === "Unmanaged" ? "\n対応：Client Connectivity Policy で「Internet only」に制限されているか確認します。" : ""),
+        cells: ['<span class="mono">' + d[0] + "</span>", App.esc(d[1]), App.esc(d[2]), d[3], st, App.esc(d[6])] };
+    }));
+  }
+  document.addEventListener("DOMContentLoaded", function () { draw(); document.getElementById("q").oninput = draw; document.getElementById("flt").onchange = draw; });
+})();
+</script>
+
+</body>
+</html>

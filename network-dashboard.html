@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Network Dashboard | CMA Trainer</title>
+<meta name="description" content="Cato Management Application の操作を練習する非公式の学習用シミュレーター">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tab="monitoring" data-page="network-dashboard" data-crumb="Network Dashboard">
+<main class="main" id="main">
+  <div class="page-title"><h1>Network Dashboard</h1><span class="muted">全拠点の通信量と回線品質</span><div style="margin-left:auto" id="trWrap"></div></div>
+  <div class="tip"><span><b>見方：</b>上の推移グラフで全体の通信量の山を、下の「回線品質マップ」で拠点×時間帯ごとの品質を確認します。赤いマスがある拠点・時間帯は、Network Analytics で詳しく見ます。</span></div>
+  <div id="tiles"></div>
+  <div class="grid2"><div id="c1"></div><div id="c2"></div></div>
+  <div id="c3"></div>
+</main>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("trWrap").innerHTML = App.timeRange();
+    document.getElementById("tr").onchange = function () { App.toast("期間を切り替えました（研修版では同じサンプルを表示します）。", "ok", 2500); };
+    const sites = App.sites();
+    document.getElementById("tiles").innerHTML = App.tiles([{ label: "Total Traffic (24h)", value: "1.84 TB", tone: "brand", tip: "全拠点・全ユーザーの合計通信量" }, { label: "Peak Throughput", value: "612 Mbps", tip: "最大の同時スループット（14:00 頃）" }, { label: "Avg Packet Loss", value: "0.31%", tone: "ok", tip: "全回線の平均ロス。1% 未満なら概ね良好" }, { label: "Links Degraded", value: 1, tone: "warn", tip: "品質注意の回線（JP-OSA-BR01 WAN1）" }]);
+    const rnd = App.rand(31), lab = [], full = [], a = [], b = [];
+    for (let i = 0; i < 25; i++) { const h = (new Date().getHours() - 24 + i + 48) % 24; lab.push(i % 4 === 0 ? h + ":00" : ""); full.push(h + ":00 台"); const w = h >= 9 && h <= 18 ? 1 : 0.2; a.push(Math.round(420 * w + rnd() * 60)); b.push(Math.round(150 * w + rnd() * 30)); }
+    document.getElementById("c1").innerHTML = App.card("Throughput（全体）", App.lineChart([{ name: "Down", data: a, color: "#1f8a5b", fill: true }, { name: "Up", data: b, color: "#6d86a2" }], { labels: lab, full: full, unit: "Mbps", title: "throughput" }));
+    document.getElementById("c2").innerHTML = App.card("Top Sites（通信量）", App.bars(sites.map(function (s, i) { const v = s.status === "Connected" ? [1210, 520, 0][i] || 80 : 0; return { label: s.name, value: v, text: v + " GB", color: s.status === "Connected" ? "var(--brand)" : "var(--faint)", tip: s.name + "：" + v + " GB" + (s.status !== "Connected" ? "（切断中）" : "") }; })));
+    const hrs = [8, 10, 12, 14, 16, 18];
+    const q = function (s, h) { if (s.status !== "Connected") return ["ng", "切断中"]; if (s.id === "s2" && h === 14) return ["ng", "ロス 2.4% / ジッタ 14ms"]; if (s.id === "s2" && (h === 12 || h === 16)) return ["warn", "ロス 0.9%"]; return ["ok", "良好"]; };
+    document.getElementById("c3").innerHTML = App.card("回線品質マップ（拠点 × 時間帯）", '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Site</th>' + hrs.map(function (h) { return "<th>" + h + ":00</th>"; }).join("") + "</tr></thead><tbody>" +
+      sites.map(function (s) { return "<tr><td>" + App.esc(s.name) + "</td>" + hrs.map(function (h) { const v = q(s, h); return '<td data-tip="' + App.esc("【" + s.name + " " + h + ":00】" + v[1] + (v[0] === "ng" && s.status === "Connected" ? "\nこの時間帯の Network Analytics を確認します。" : "")) + '"><span class="badge ' + (v[0] === "ok" ? "b-ok" : v[0] === "warn" ? "b-warn" : "b-ng") + '">' + (v[0] === "ok" ? "Good" : v[0] === "warn" ? "Fair" : "Poor") + "</span></td>"; }).join("") + "</tr>"; }).join("") + "</tbody></table></div>", { flush: true });
+  });
+})();
+</script>
+
+</body>
+</html>
