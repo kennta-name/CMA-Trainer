@@ -23,6 +23,8 @@
 </main>
 
 <script src="assets/app.js"></script>
+<script src="assets/challenges.js"></script>
+<script src="assets/trainer.js"></script>
 <script>
 (function () {
   let flashId = null;
@@ -91,7 +93,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     draw();
     document.getElementById("q").addEventListener("input", draw);
-    document.getElementById("btnNew").addEventListener("click", openNew);
+    document.getElementById("btnNew").addEventListener("click", function () { App.step("site_add", "new"); openNew(); });
   });
 })();
 </script>

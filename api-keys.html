@@ -16,6 +16,8 @@
   <div class="card"><div class="pol-bar"><span class="muted" id="cnt"></span><div class="btn-group" style="margin-left:auto"><button class="btn btn-primary" id="new" type="button">＋ New</button></div></div><div id="tbl"></div></div>
 </main>
 <script src="assets/app.js"></script>
+<script src="assets/challenges.js"></script>
+<script src="assets/trainer.js"></script>
 <script>
 (function () {
   let K = App.db.get("apikeys", [{ id: "k1", name: "SIEM export (read-only)", perm: "View", ip: "203.0.113.50", exp: "2027/03/31", last: Date.now() - 3600e3, owner: "yamada.admin@example.co.jp" }, { id: "k2", name: "Terraform (old)", perm: "Edit", ip: "Any", exp: "なし", last: Date.now() - 140 * 864e5, owner: "msp-operator@partner.example" }]);

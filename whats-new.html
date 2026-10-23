@@ -16,9 +16,12 @@
   <div id="list"></div>
 </main>
 <script src="assets/app.js"></script>
+<script src="assets/challenges.js"></script>
+<script src="assets/trainer.js"></script>
 <script>
 (function () {
-  const L = [["2026/10/22", "全メニューを操作可能に", ["Monitoring のダッシュボード（Security Threats・MITRE ATT&CK・Cloud Apps・DLP・SaaS Security API・SDP Users・Network Dashboard）", "Sites Overview・SDP Users Overview・App Analytics・Routing Table", "Best Practices（研修での設定内容を採点）、Stories Dashboard / Workbench", "Groups・DNS Settings・Device Posture・Threat Prevention・Application Control・Data Protection", "Assets > Device Inventory、Administration > License / API Keys", "拠点の Real-Time と High Availability、上部バーのアラート・通知・アプリ一覧", "研修ミッションを2つ追加（DNS 転送設定・Best Practices）"]],
+  const L = [["2026/10/23", "トレーニング機能（ガイドあり／ガイドなし）を追加", ["右上の［トレーニング］から課題を選べるトレーニングセンター", "ガイドあり（チュートリアル）：次に押す場所だけを照らすスポットライト。画面サイズの変更やスクロールにも追従", "ガイドなし（実践チャレンジ）：右側のチャット風通知センターに課題・状況・誤操作ヒントが届く。折りたたみ・最初からやり直しに対応", "チュートリアルをクリアすると、同じテーマのガイドなし課題へステップアップ", "課題は assets/challenges.js にまとめて定義（mode: guided / chat）"]],
+    ["2026/10/22", "全メニューを操作可能に", ["Monitoring のダッシュボード（Security Threats・MITRE ATT&CK・Cloud Apps・DLP・SaaS Security API・SDP Users・Network Dashboard）", "Sites Overview・SDP Users Overview・App Analytics・Routing Table", "Best Practices（研修での設定内容を採点）、Stories Dashboard / Workbench", "Groups・DNS Settings・Device Posture・Threat Prevention・Application Control・Data Protection", "Assets > Device Inventory、Administration > License / API Keys", "拠点の Real-Time と High Availability、上部バーのアラート・通知・アプリ一覧", "研修ミッションを2つ追加（DNS 転送設定・Best Practices）"]],
     ["2026/10/22", "マウスを乗せたときの説明を拡充", ["表の行・列見出し・グラフ・図にも、解説や現在の状態を表示"]],
     ["2026/10/22", "操作要領（図解）と初回ガイドを追加", ["右上の「操作要領」から図解の手順書へ", "初回アクセス時に画面の見方を表示（右上の ? で再表示）"]]];
   document.addEventListener("DOMContentLoaded", function () {

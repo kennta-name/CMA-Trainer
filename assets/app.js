@@ -12,6 +12,17 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   App.$ = $; App.$$ = $$;
+
+  /* ---------------- イベントバス（トレーニング機能が画面の操作を受け取る） ----------------
+     App.on("policy:apply", fn) / App.on("*", fn(name, data)) / App.emit(name, data) */
+  const BUS = {};
+  App.on = (name, fn) => { (BUS[name] = BUS[name] || []).push(fn); return () => { BUS[name] = BUS[name].filter((f) => f !== fn); }; };
+  App.emit = (name, data = {}) => {
+    (BUS[name] || []).forEach((fn) => { try { fn(data, name); } catch (e) { console.error(e); } });
+    (BUS["*"] || []).forEach((fn) => { try { fn(data, name); } catch (e) { console.error(e); } });
+  };
+  const trainingOn = () => document.body && document.body.classList.contains("tr-on");
+  App.trainingOn = trainingOn;
   const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   App.esc = esc;
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -166,7 +177,7 @@
         <span class="train-pill" data-tip="これは実機ではなく、練習用のシミュレーターです。">TRAINING</span>
         <a class="whatsnew" href="whats-new.html" data-tip="新機能・変更点のお知らせを表示します（研修版では研修サイトの更新履歴）。">What's New</a>
         <button class="top-ico" type="button" id="alertBtn" aria-label="アラート" data-tip="アカウントの重要なお知らせ（切断中の拠点など）を表示します。">${App.icon("alert")}<span class="top-badge" id="alertBadge" hidden></span></button>
-        <button class="top-ico" type="button" id="bellBtn" aria-label="通知" data-tip="最近の通知（設定変更・ミッション達成など）を表示します。">${App.icon("bell")}</button>
+        <button class="top-ico" type="button" id="bellBtn" aria-label="通知" data-tip="最近の通知（設定変更・ミッション達成など）を表示します。未読の数がバッジに出ます。">${App.icon("bell")}<span class="top-badge" id="bellBadge" hidden></span></button>
         <button class="top-ico" type="button" id="helpBtn" aria-label="画面の見方" data-tip="画面の見方と、まず最初にやることをもう一度表示します。">${App.icon("help")}</button>
       </div>`;
     body.insertBefore(top, body.firstChild);
@@ -206,10 +217,8 @@
     const down = App.sites().filter((x) => x.status !== "Connected");
     if (down.length) { $("#alertBadge").hidden = false; $("#alertBadge").textContent = down.length; }
     $("#alertBtn").addEventListener("click", (e) => App.flyout(e.currentTarget, "Account Alerts", down.length ? down.map((x) => `<a class="fly-item" href="site.html" data-sel="${x.id}"><span class="dot ${x.status === "Disconnected" ? "ng" : "warn"}"></span><span><b>${esc(x.name)}</b> は ${x.status === "Disconnected" ? "切断中です" : "Socket 未接続です"}<small>${x.status === "Disconnected" ? "Snapshot で原因を確認してください" : "現地で Socket を接続してください"}</small></span></a>`).join("") : '<p class="muted" style="padding:10px 14px">重要なお知らせはありません。</p>'));
-    $("#bellBtn").addEventListener("click", (e) => {
-      const au = App.db.get("audit", seedAudit).slice(0, 6);
-      App.flyout(e.currentTarget, "Notifications", au.map((a) => `<a class="fly-item" href="audit-trail.html"><span class="dot ${a.action === "Delete" ? "ng" : "ok"}"></span><span><b>${esc(a.module)}：${esc(a.action)}</b> ${esc(a.object)}<small>${App.fmtShort(a.t)} ／ ${esc(a.admin)}</small></span></a>`).join("") + '<a class="fly-more" href="audit-trail.html">Audit Trail をすべて見る →</a>');
-    });
+    $("#bellBtn").addEventListener("click", (e) => openBell(e.currentTarget));
+    updateBell();
     document.addEventListener("click", (e) => { const a = e.target.closest("[data-sel]"); if (a) App.db.set("selectedSite", a.dataset.sel); });
     $("#menuBtn").addEventListener("click", () => body.classList.toggle("side-open"));
     $("#sideToggle").addEventListener("click", () => {
@@ -219,16 +228,88 @@
     main.addEventListener("click", () => body.classList.remove("side-open"));
   }
 
-  /* ---------------- トースト ---------------- */
-  App.toast = (msg, type = "ok", ms = 4200) => {
+  /* ---------------- トースト（リッチ版） ----------------
+     App.toast(本文, 種類 ok|warn|ng|info|mission, 表示ms, { title, action:{label,href|run}, icon }) */
+  const TOAST_ICON = { ok: "check", warn: "alert", ng: "alert", info: "help", mission: "flag" };
+  const TOAST_TITLE = { ok: "完了", warn: "次の操作が必要です", ng: "確認してください", info: "お知らせ", mission: "ミッション達成" };
+  App.toast = (msg, type = "ok", ms = 4200, opt = {}) => {
     let box = $(".toasts");
-    if (!box) { box = document.createElement("div"); box.className = "toasts"; box.setAttribute("role", "status"); document.body.appendChild(box); }
+    if (!box) { box = document.createElement("div"); box.className = "toasts"; box.setAttribute("role", "status"); box.setAttribute("aria-live", "polite"); document.body.appendChild(box); }
+    // 同じグループの古いトーストは置き換える（重なりすぎ防止）
+    (opt.clear || []).concat(opt.group ? [opt.group] : []).forEach((g) => $$(`.toast[data-group="${g}"]`, box).forEach((x) => x.remove()));
+    while (box.children.length >= 3) box.firstElementChild.remove();
     const t = document.createElement("div");
     t.className = "toast " + type;
-    t.innerHTML = `<span>${msg}</span>`;
+    if (opt.group) t.dataset.group = opt.group;
+    const title = opt.title === undefined ? TOAST_TITLE[type] : opt.title;
+    t.innerHTML = `<span class="t-ico">${App.icon(opt.icon || TOAST_ICON[type] || "check")}</span>
+      <div class="t-body">${title ? `<b class="t-title">${esc(title)}</b>` : ""}<div class="t-msg">${msg}</div>${opt.action ? `<a class="t-act" href="${opt.action.href || "#"}">${esc(opt.action.label)} →</a>` : ""}</div>
+      <button class="t-x" type="button" aria-label="閉じる">×</button><i class="t-bar" style="animation-duration:${ms}ms"></i>`;
     box.appendChild(t);
-    setTimeout(() => t.remove(), ms);
+    const kill = () => { if (!t.isConnected) return; t.classList.add("out"); setTimeout(() => t.remove(), 220); };
+    t.querySelector(".t-x").addEventListener("click", kill);
+    if (opt.action && opt.action.run) t.querySelector(".t-act").addEventListener("click", (e) => { e.preventDefault(); opt.action.run(); kill(); });
+    const bar = t.querySelector(".t-bar");
+    bar.addEventListener("animationend", kill);
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(kill, ms);
+    return t;
   };
+
+  /* ---------------- 紙吹雪（成功演出） ---------------- */
+  App.confetti = (x, y, n = 90, spread = 1) => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const c = document.createElement("canvas");
+    c.className = "confetti"; c.width = innerWidth; c.height = innerHeight;
+    document.body.appendChild(c);
+    const g = c.getContext("2d");
+    const cols = ["#1f8a5b", "#3fa6c2", "#e58a00", "#f2c14e", "#6d86a2", "#d6333b", "#7a5bc0"];
+    if (x == null) { x = innerWidth / 2; y = innerHeight / 3; }
+    const ps = Array.from({ length: n }, () => {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.2 * spread, v = 5 + Math.random() * 7;
+      return { x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 5 + Math.random() * 5, h: 3 + Math.random() * 4, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: cols[(Math.random() * cols.length) | 0] };
+    });
+    const t0 = performance.now();
+    (function frame(t) {
+      const k = (t - t0) / 1700;
+      g.clearRect(0, 0, c.width, c.height);
+      ps.forEach((p) => { p.vy += 0.22; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        g.save(); g.globalAlpha = Math.max(0, 1 - k); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore(); });
+      if (k < 1) requestAnimationFrame(frame); else c.remove();
+    })(t0);
+  };
+  App.burstFrom = (el, n) => { if (!el || !el.getBoundingClientRect) return App.confetti(null, null, n); const r = el.getBoundingClientRect(); App.confetti(r.left + r.width / 2, r.top + r.height / 2, n); };
+
+  /* ---------------- 通知センター（ベル） ---------------- */
+  App.notify = (n) => {
+    const list = App.db.get("notifs", seedNotifs);
+    list.unshift(Object.assign({ t: Date.now(), read: false, kind: "ok" }, n));
+    App.db.set("notifs", list.slice(0, 60));
+    updateBell();
+  };
+  function seedNotifs() {
+    const now = Date.now();
+    return [{ t: now - 2.6 * 3600e3, title: "AWS-TKY-VPC が切断されました", body: "Snapshot で原因を確認してください。", href: "site.html", kind: "ng", read: false, sel: "s3" },
+      { t: now - 20 * 3600e3, title: "Internet Firewall：Revision #3 が公開されました", body: "yamada.admin@example.co.jp", href: "audit-trail.html", kind: "ok", read: true }];
+  }
+  function updateBell() {
+    const b = $("#bellBadge"); if (!b) return;
+    const n = App.db.get("notifs", seedNotifs).filter((x) => !x.read).length;
+    b.hidden = !n; b.textContent = n > 9 ? "9+" : n;
+    const bell = $("#bellBtn"); if (bell) { bell.classList.remove("ring"); void bell.offsetWidth; if (n) bell.classList.add("ring"); }
+  }
+  App.updateBell = updateBell;
+  function openBell(anchor) {
+    const list = App.db.get("notifs", seedNotifs);
+    App.flyout(anchor, "Notifications", (list.length ? list.slice(0, 12).map((x, i) => `<a class="fly-item ${x.read ? "" : "unread"}" href="${x.href || "#"}" data-ni="${i}" ${x.sel ? `data-sel="${x.sel}"` : ""}><span class="dot ${x.kind === "ng" ? "ng" : x.kind === "mission" ? "warn" : "ok"}"></span><span><b>${esc(x.title)}</b>${x.body ? `<small>${esc(x.body)}</small>` : ""}<small>${App.fmtShort(x.t)}</small></span></a>`).join("") : '<p class="muted" style="padding:10px 14px">通知はありません。</p>') +
+      '<div class="fly-foot"><button class="btn btn-text" type="button" id="readAll">すべて既読にする</button><a class="fly-more" href="audit-trail.html">Audit Trail →</a></div>');
+    const f = $(".flyout");
+    if (!f) return;
+    f.addEventListener("click", (e) => {
+      const it = e.target.closest("[data-ni]");
+      if (it) { const l = App.db.get("notifs", seedNotifs); if (l[+it.dataset.ni]) { l[+it.dataset.ni].read = true; App.db.set("notifs", l); } updateBell(); if (it.getAttribute("href") === "#") e.preventDefault(); }
+      if (e.target.closest("#readAll")) { const l = App.db.get("notifs", seedNotifs); l.forEach((x) => (x.read = true)); App.db.set("notifs", l); updateBell(); $$(".fly-item.unread", f).forEach((x) => x.classList.remove("unread")); }
+    });
+  }
 
   /* ---------------- モーダル（confirm の代わり） ---------------- */
   App.modal = ({ title, body, ok = "OK", cancel = "Cancel", danger = false, onOk }) => {
@@ -239,6 +320,7 @@
     m.innerHTML = `<div class="modal-card"><h3>${esc(title)}</h3><div class="mb">${body}</div>
       <div class="mf">${cancel ? `<button class="btn" data-c>${esc(cancel)}</button>` : ""}<button class="btn ${danger ? "btn-danger" : "btn-primary"}" data-o>${esc(ok)}</button></div></div>`;
     document.body.appendChild(m);
+    App.emit("modal:open", { title });
     const close = () => m.remove();
     m.addEventListener("click", (e) => {
       if (e.target === m || e.target.hasAttribute("data-c")) close();
@@ -340,6 +422,7 @@
     }
     draw();
     document.body.append(scrim, el);
+    App.emit("panel:open", { title: cfg.title });
     const firstInput = $(".panel-b input.input, .panel-b select", el);
     if (firstInput) firstInput.focus();
     el.addEventListener("click", (e) => {
@@ -365,7 +448,7 @@
     scrim.addEventListener("click", App.closePanel);
     return { el, model, redraw: () => { read(); draw(); } };
   };
-  App.closePanel = () => { $$(".panel, .scrim").forEach((n) => n.remove()); };
+  App.closePanel = () => { const had = !!$(".panel"); $$(".panel, .scrim").forEach((n) => n.remove()); if (had) App.emit("panel:close", {}); };
 
   /* ---------------- 監査ログ（Audit Trail） ---------------- */
   App.audit = (module, action, object, detail = "") => {
@@ -373,6 +456,8 @@
     const me = App.trainee();
     list.unshift({ t: Date.now(), admin: me.email || "trainee@example.com", module, action, object, detail, mine: true });
     App.db.set("audit", list.slice(0, 300));
+    App.notify({ title: module + "：" + action + (object ? "（" + object + "）" : ""), body: detail ? String(detail).slice(0, 80) : "", href: "audit-trail.html", kind: action === "Delete" ? "ng" : "ok", read: false });
+    App.step("audit_check", "change");
   };
   function seedAudit() {
     const now = Date.now(), h = 3600e3;
@@ -384,46 +469,129 @@
   }
   App.seedAudit = seedAudit;
 
-  /* ---------------- 研修ミッション ---------------- */
+  /* =====================================================================
+     研修ミッション（手順ごとのチェックリスト）
+     steps: [キー, 表示名, ハイライトする要素（CSSセレクタ or 関数）]
+     キー "visit" はその画面を開いたとき、"done" はミッション完了時に自動でチェックされます。
+     ===================================================================== */
+  const rowOf = (txt) => () => $$("tbody tr.clickable").find((tr) => tr.textContent.includes(txt));
   App.MISSIONS = [
-    ["start", "研修を開始する", "開始画面で名前を入力して［研修を開始］", "index.html"],
-    ["topo_site", "Topology から切断中の拠点を開く", "Monitoring > Topology で赤い拠点をクリック", "topology.html"],
-    ["events_block", "Events を Action = Block で絞り込む", "Monitoring > Events の左の Action を展開して Include", "events.html"],
-    ["ifw_allow", "Internet Firewall に Allow ルールを追加して Publish", "Security > Internet Firewall → New → Apply → Save → Publish", "internet-firewall.html"],
-    ["wan_rule", "WAN Firewall に許可ルールを追加して Publish", "Security > WAN Firewall（最後は暗黙の Block）", "wan-firewall.html"],
-    ["tls_bypass", "TLS Inspection を有効化し、Bypass ルールを追加して Publish", "Security > TLS Inspection", "tls-inspection.html"],
-    ["ip_alloc", "固定の送信元IPを割り当てる", "Network > IP Allocation → ロケーション選択 → Save", "ip-allocation.html"],
-    ["nr_nat", "Network Rule で NAT に Allocated IP を指定して Publish", "Network > Network Rules → Rule Type: Internet → Configuration", "network-rules.html"],
-    ["nr_qos", "Web会議ルールの Bandwidth Priority を上げて Publish", "Network > Network Rules（数字が小さいほど優先）", "network-rules.html"],
-    ["site_add", "新しい拠点（サイト）を追加する", "Network > Sites → New → Apply", "sites.html"],
-    ["admin_add", "管理者アカウントを追加する", "Administration > Administrators → New → Apply", "administrators.html"],
-    ["ccp_rule", "Client Connectivity Policy にルールを追加して Publish", "Access > Client Connectivity Policy", "client-connectivity.html"],
-    ["audit_check", "Audit Trail で自分の変更を確認する", "Monitoring > Audit Trail（何か変更した後に）", "audit-trail.html"],
-    ["dns_fwd", "社内ドメインの DNS 転送先を設定する", "Network > DNS Settings → Domain Forwarding に追加 → Save", "dns-settings.html"],
-    ["bp_check", "Best Practices の未対応項目を1つ開いて対処する", "Monitoring > Best Practices →［対処する］", "best-practices.html"]
+    { id: "start", t: "研修を開始する", href: "index.html", steps: [["done", "名前を入力して［研修を開始］", "#startForm button[type=submit]"]] },
+    { id: "topo_site", t: "Topology から切断中の拠点を開く", href: "topology.html", steps: [["visit", "Monitoring > Topology を開く"], ["done", "赤い拠点（AWS-TKY-VPC）をクリック", '.node[data-id="s3"]']] },
+    { id: "events_block", t: "Events を Action = Block で絞り込む", href: "events.html", steps: [["visit", "Monitoring > Events を開く"], ["done", "左の FIELDS で Action の Block に［+］", () => $('[data-inc="action"][data-v="Block"]') || $('[data-fld="action"]')]] },
+    { id: "ifw_allow", t: "Internet Firewall に Allow ルールを追加して Publish", href: "internet-firewall.html", steps: [["visit", "Security > Internet Firewall を開く"], ["new", "［New］でパネルを開く", "#btnNew"], ["apply", "名前を入れ Action = Allow で［Apply］", ".panel [data-apply]"], ["save", "［Save］で未公開リビジョンに保存", "#btnSave"], ["done", "［Publish］→ 確認画面でも［Publish］", () => $(".modal [data-o]") || $("#btnPublish")]] },
+    { id: "wan_rule", t: "WAN Firewall に許可ルールを追加して Publish", href: "wan-firewall.html", steps: [["visit", "Security > WAN Firewall を開く"], ["new", "［New］でパネルを開く", "#btnNew"], ["apply", "Action = Allow のルールを［Apply］", ".panel [data-apply]"], ["save", "［Save］", "#btnSave"], ["done", "［Publish］→［Publish］", () => $(".modal [data-o]") || $("#btnPublish")]] },
+    { id: "tls_bypass", t: "TLS Inspection を有効化し、Bypass ルールを追加して Publish", href: "tls-inspection.html", steps: [["visit", "Security > TLS Inspection を開く"], ["enable", "「Enable TLS Inspection」をオン", ".enable-row .switch"], ["apply", "［New］→ Action = Bypass で［Apply］", () => $(".panel [data-apply]") || $("#btnNew")], ["save", "［Save］", "#btnSave"], ["done", "［Publish］→［Publish］", () => $(".modal [data-o]") || $("#btnPublish")]] },
+    { id: "ip_alloc", t: "固定の送信元IPを割り当てる", href: "ip-allocation.html", steps: [["visit", "Network > IP Allocation を開く"], ["add", "Location を選んで［Allocate］", "#add"], ["done", "［Save］でIPを確定", "#save"]] },
+    { id: "nr_nat", t: "Network Rule で NAT に Allocated IP を指定して Publish", href: "network-rules.html", steps: [["visit", "Network > Network Rules を開く"], ["new", "［New］→ New Rule", () => $(".pop button") || $("#btnNew")], ["apply", "Internet ルールで Route/NAT = NAT にして［Apply］", ".panel [data-apply]"], ["save", "［Save］", "#btnSave"], ["done", "［Publish］→［Publish］", () => $(".modal [data-o]") || $("#btnPublish")]] },
+    { id: "nr_qos", t: "Web会議ルールの Bandwidth Priority を上げて Publish", href: "network-rules.html", steps: [["visit", "Network > Network Rules を開く"], ["apply", "「Web Conferencing」を開き p255 以外にして［Apply］", () => $(".panel [data-apply]") || rowOf("Web Conferencing")()], ["save", "［Save］", "#btnSave"], ["done", "［Publish］→［Publish］", () => $(".modal [data-o]") || $("#btnPublish")]] },
+    { id: "site_add", t: "新しい拠点（サイト）を追加する", href: "sites.html", steps: [["visit", "Network > Sites を開く"], ["new", "［New］で Add Site を開く", "#btnNew"], ["done", "Site Name と Native Range を入れて［Apply］", ".panel [data-apply]"]] },
+    { id: "admin_add", t: "管理者アカウントを追加する", href: "administrators.html", steps: [["visit", "Administration > Administrators を開く"], ["new", "［New］で Create Administrator を開く", "#new"], ["done", "［Apply］（研修版は何を入れても可）", ".panel [data-apply]"]] },
+    { id: "ccp_rule", t: "Client Connectivity Policy にルールを追加して Publish", href: "client-connectivity.html", steps: [["visit", "Access > Client Connectivity Policy を開く"], ["new", "［New］でパネルを開く", "#btnNew"], ["apply", "条件と Action を決めて［Apply］", ".panel [data-apply]"], ["save", "［Save］", "#btnSave"], ["done", "［Publish］→［Publish］", () => $(".modal [data-o]") || $("#btnPublish")]] },
+    { id: "audit_check", t: "Audit Trail で自分の変更を確認する", href: "audit-trail.html", steps: [["change", "どこかの画面で設定を1つ変更（Save など）"], ["done", "Monitoring > Audit Trail を開いて確認"]] },
+    { id: "dns_fwd", t: "社内ドメインの DNS 転送先を設定する", href: "dns-settings.html", steps: [["visit", "Network > DNS Settings を開く"], ["add", "Domain と DNS Server を入れて［＋ Add］", "#add"], ["done", "［Save］", "#save"]] },
+    { id: "bp_check", t: "Best Practices の未対応項目を1つ開いて対処する", href: "best-practices.html", steps: [["visit", "Monitoring > Best Practices を開く"], ["done", "Failed の項目の［対処する］", "[data-fix]"]] }
   ];
+  const MBY = (id) => App.MISSIONS.find((m) => m.id === id);
+  const curPage = () => (location.pathname.split("/").pop() || "index.html").replace(/\?.*$/, "") || "index.html";
+  const isDone = (id) => !!App.db.get("missions", {})[id];
+  const stepsOf = (id) => (App.db.get("msteps", {})[id] || {});
+  App.missionProgress = (id) => { const m = MBY(id); if (!m) return [0, 0]; const st = stepsOf(id), d = isDone(id); const n = m.steps.filter(([k]) => d || st[k]).length; return [n, m.steps.length]; };
+
+  /* 手順をチェック（同じ手順は1回だけ） */
+  App.step = (id, key, opt = {}) => {
+    if (key !== "done") App.emit("mission:" + key, { id });
+    const m = MBY(id);
+    if (!m || isDone(id) || !m.steps.some(([k]) => k === key)) return false;
+    const all = App.db.get("msteps", {});
+    all[id] = all[id] || {};
+    if (all[id][key]) return false;
+    all[id][key] = Date.now();
+    App.db.set("msteps", all);
+    if (key === "done") { App.complete(id); return true; }
+    const lab = m.steps.find(([k]) => k === key)[1];
+    if (!opt.quiet && !trainingOn()) {
+      const [a, b] = App.missionProgress(id);
+      const nx = m.steps.find(([k]) => !all[id][k]);
+      App.toast(`<span class="t-step">✓ ${esc(lab)}</span>${nx ? `<span class="t-next">次：${esc(nx[1])}</span>` : ""}`, "info", 3600, { title: `ミッション進行中 ${a}/${b}：${m.t}`, icon: "flag", group: "step" });
+    }
+    refreshMissionUI(id, key);
+    return true;
+  };
+  App.unstep = (id, keys) => {
+    if (isDone(id)) return;
+    const all = App.db.get("msteps", {});
+    if (!all[id]) return;
+    let changed = false;
+    keys.forEach((k) => { if (all[id][k]) { delete all[id][k]; changed = true; } });
+    if (changed) { App.db.set("msteps", all); refreshMissionUI(id); }
+  };
+
   App.complete = (id) => {
+    App.emit("mission:done", { id });
     const done = App.db.get("missions", {});
     if (done[id]) return;
     done[id] = Date.now();
     App.db.set("missions", done);
-    const m = App.MISSIONS.find((x) => x[0] === id);
-    if (m) setTimeout(() => App.toast(`ミッション達成：${m[1]}`, "ok", 5000), 400);
-    renderMissions();
+    const m = MBY(id);
+    if (!m) return;
+    const all = App.db.get("msteps", {}); all[id] = all[id] || {}; m.steps.forEach(([k]) => { all[id][k] = all[id][k] || Date.now(); }); App.db.set("msteps", all);
+    const n = App.MISSIONS.filter((x) => done[x.id]).length, tot = App.MISSIONS.length;
+    const next = App.MISSIONS.find((x) => !done[x.id]);
+    App.notify({ title: "ミッション達成：" + m.t, body: n + " / " + tot + " 完了", href: next ? next.href : "guide.html", kind: "mission" });
+    if (n === tot) App.db.set("gradPending", true);
+    setTimeout(() => {
+      App.burstFrom($(".mission-fab"), 110);
+      App.toast(`<b>${esc(m.t)}</b><div class="t-prog"><i style="width:${(n / tot) * 100}%"></i></div><span class="t-next">${n} / ${tot} 完了${next ? "　次：" + esc(next.t) : ""}</span>`, "mission", 7000,
+        { title: "ミッション達成！", group: "mission", clear: ["step"], action: next ? { label: "次のミッションへ", href: next.href } : { label: "操作要領で復習", href: "guide.html" } });
+      if (n === tot) setTimeout(App.graduation, 900);
+    }, 350);
+    refreshMissionUI(id, "done", true);
   };
+
+  /* すべて完了したときの修了画面 */
+  App.graduation = () => {
+    if ($(".cert")) return;
+    App.db.set("gradPending", false);
+    const done = App.db.get("missions", {}), me = App.trainee();
+    const ts = Object.values(done).sort();
+    const mins = ts.length ? Math.max(1, Math.round((ts[ts.length - 1] - ts[0]) / 60000)) : 0;
+    App.confetti(innerWidth * 0.25, innerHeight * 0.5, 140); App.confetti(innerWidth * 0.75, innerHeight * 0.5, 140);
+    App.modal({ title: "研修修了おめでとうございます！", ok: "閉じる", cancel: "",
+      body: `<div class="cert"><p class="cert-eyebrow">CMA TRAINER 修了証</p><p class="cert-name">${esc(me.name)} さん</p><p>Cato 管理画面の基本操作 ${App.MISSIONS.length} ミッションをすべて達成しました。</p>
+        <dl><div><dt>所要時間</dt><dd>約 ${mins} 分</dd></div><div><dt>達成日</dt><dd>${App.fmt(Date.now()).slice(0, 10)}</dd></div></dl>
+        <p class="muted">次は実機の画面で、操作要領PDFの「まず必須でやること」から始めましょう。</p></div>` });
+  };
+
+  function missionLis(done) {
+    const page = curPage();
+    return App.MISSIONS.map((m, i) => {
+      const d = !!done[m.id], st = stepsOf(m.id);
+      const [a, b] = App.missionProgress(m.id);
+      const here = m.href === page;
+      return `<li class="${d ? "done" : ""} ${here && !d ? "here" : ""}" data-mid="${m.id}"><span class="mk">${d ? "✓" : i + 1}</span>
+        <div style="min-width:0;flex:1"><div class="mt">${esc(m.t)}${here && !d ? ' <span class="badge b-info">この画面</span>' : ""}</div>
+        <div class="mprog"><i style="width:${(a / b) * 100}%"></i></div>
+        <ul class="msteps">${m.steps.map(([k, l]) => `<li class="${d || st[k] ? "ok" : ""}" data-sk="${k}"><span>${d || st[k] ? "✓" : "○"}</span>${esc(l)}</li>`).join("")}</ul>
+        <div class="mp">${a} / ${b} 手順　${here ? "" : `<a href="${m.href}">開く →</a>`}</div></div></li>`;
+    }).join("");
+  }
   function renderMissions() {
     const done = App.db.get("missions", {});
-    const n = App.MISSIONS.filter((m) => done[m[0]]).length;
+    const n = App.MISSIONS.filter((m) => done[m.id]).length;
     let fab = $(".mission-fab");
     if (!fab) {
       fab = document.createElement("button");
       fab.className = "mission-fab"; fab.type = "button"; fab.setAttribute("aria-expanded", "false");
+      fab.dataset.tip = "研修ミッションのチェックリストを開きます。操作すると手順ごとにリアルタイムでチェックが付きます。";
       document.body.appendChild(fab);
       fab.addEventListener("click", () => {
         const d = $(".missions");
         d.hidden = !d.hidden;
         fab.setAttribute("aria-expanded", String(!d.hidden));
+        document.body.classList.toggle("drawer-open", !d.hidden);
         try { sessionStorage.setItem(PREFIX + "drawer", d.hidden ? "0" : "1"); } catch (e) { /* noop */ }
+        if (!d.hidden) { const h = $(".mlist li.here", d); if (h) h.scrollIntoView({ block: "nearest" }); }
       });
     }
     fab.innerHTML = `${App.icon("flag")}研修ミッション<span class="prog">${n} / ${App.MISSIONS.length}</span>`;
@@ -431,21 +599,148 @@
     if (!d) {
       d = document.createElement("section"); d.className = "missions"; d.hidden = true; d.setAttribute("aria-label", "研修ミッション");
       document.body.appendChild(d);
-      try { if (sessionStorage.getItem(PREFIX + "drawer") === "1") { d.hidden = false; fab.setAttribute("aria-expanded", "true"); } } catch (e) { /* noop */ }
+      try { if (sessionStorage.getItem(PREFIX + "drawer") === "1") { d.hidden = false; fab.setAttribute("aria-expanded", "true"); document.body.classList.add("drawer-open"); } } catch (e) { /* noop */ }
       d.addEventListener("click", (e) => {
         if (e.target.closest("[data-reset]")) {
           App.modal({ title: "研修データのリセット", body: "追加したルール・拠点・管理者、ミッションの達成状況をすべて初期状態に戻します。", ok: "リセット", danger: true,
             onOk: () => { App.db.resetAll(); location.href = "index.html"; } });
         }
-        if (e.target.closest("[data-hide]")) { d.hidden = true; fab.setAttribute("aria-expanded", "false"); try { sessionStorage.setItem(PREFIX + "drawer", "0"); } catch (er) { /* noop */ } }
+        if (e.target.closest("[data-hide]")) { d.hidden = true; fab.setAttribute("aria-expanded", "false"); document.body.classList.remove("drawer-open"); try { sessionStorage.setItem(PREFIX + "drawer", "0"); } catch (er) { /* noop */ } }
       });
     }
-    d.innerHTML = `<div class="missions-h"><h3>研修ミッション</h3><p>操作要領PDFの手順を、この画面で実際に操作して確かめましょう。</p>
+    d.innerHTML = `<div class="missions-h"><h3>研修ミッション <span class="muted" style="font-weight:400;font-size:12px">${n} / ${App.MISSIONS.length} 完了</span></h3><p>操作すると、手順ごとにリアルタイムでチェックが付きます。</p>
       <div class="mbar"><i style="width:${(n / App.MISSIONS.length) * 100}%"></i></div></div>
-      <ol class="mlist">${App.MISSIONS.map(([id, t, p, href], i) => `<li class="${done[id] ? "done" : ""}"><span class="mk">${done[id] ? "✓" : i + 1}</span>
-        <div><div class="mt">${esc(t)}</div><div class="mp">${esc(p)}　<a href="${href}">開く →</a></div></div></li>`).join("")}</ol>
+      <ol class="mlist">${missionLis(done)}</ol>
       <div class="missions-f"><button class="btn btn-text" type="button" data-reset data-tip="追加したルール・拠点・管理者と、ミッションの達成状況を初期状態に戻します。">研修データをリセット</button><a class="btn" href="guide.html">${App.icon("book")}操作要領</a><button class="btn" type="button" data-hide>閉じる</button></div>`;
   }
+  function refreshMissionUI(id, key, big) {
+    renderMissions();
+    renderTracker();
+    const fab = $(".mission-fab");
+    if (fab) { fab.classList.remove("bump"); void fab.offsetWidth; fab.classList.remove("big"); fab.classList.add("bump"); if (big) fab.classList.add("big"); }
+    if (id && key) {
+      $$(`[data-mid="${id}"] [data-sk="${key}"]`).forEach((el) => { el.classList.add("just"); });
+      $$(`.tracker [data-sk="${key}"]`).forEach((el) => el.classList.add("just"));
+    }
+  }
+
+  /* ---------- この画面のミッション（左下のトラッカー）＋ 次に押す場所のハイライト ---------- */
+  let trackerCollapsed = false;
+  try { trackerCollapsed = sessionStorage.getItem(PREFIX + "trk") === "0"; } catch (e) { /* noop */ }
+  function pageMissions() { const page = curPage(); return App.MISSIONS.filter((m) => m.href === page && !isDone(m.id)); }
+  let trackerIdx = 0;
+  function renderTracker() {
+    if (!document.body.dataset.tab) return;
+    let el = $(".tracker");
+    const list = pageMissions();
+    if (!list.length) {
+      if (el) {
+        const justDone = App.MISSIONS.filter((m) => m.href === curPage());
+        if (justDone.length && !el.classList.contains("cleared")) { el.classList.add("cleared"); el.innerHTML = `<div class="trk-h">${App.icon("check")}<b>この画面のミッションはすべて達成！</b><button class="t-x" type="button" aria-label="閉じる" data-trk-close>×</button></div>`; el.querySelector("[data-trk-close]").onclick = () => el.remove(); setTimeout(() => el && el.remove(), 6000); }
+        else if (!justDone.length) el.remove();
+      }
+      clearCoach(); return;
+    }
+    if (trackerIdx >= list.length) trackerIdx = 0;
+    const m = list[trackerIdx], st = stepsOf(m.id);
+    const [a, b] = App.missionProgress(m.id);
+    const nextStep = m.steps.find(([k]) => !st[k]);
+    if (!el) {
+      el = document.createElement("aside"); el.className = "tracker"; el.setAttribute("aria-label", "この画面のミッション");
+      const main = $("#main"), crumb = $("#main > .crumb");
+      if (main) main.insertBefore(el, crumb ? crumb.nextSibling : main.firstChild); else document.body.appendChild(el);
+    }
+    el.classList.remove("cleared");
+    el.classList.toggle("min", trackerCollapsed);
+    el.innerHTML = trackerCollapsed
+      ? `<button type="button" class="trk-pill" data-trk-open data-tip="この画面のミッションの手順を表示します。">${App.icon("flag")}ミッション ${a}/${b}：${esc(nextStep ? nextStep[1] : "")}</button>`
+      : `<div class="trk-h">${App.icon("flag")}<b>この画面のミッション</b>${list.length > 1 ? `<button class="btn btn-text" type="button" data-trk-next data-tip="この画面の別のミッションに切り替えます。">${trackerIdx + 1}/${list.length} ▸</button>` : ""}<button class="t-x" type="button" aria-label="小さくする" data-trk-min data-tip="小さく折りたたみます。">–</button></div>
+        <div class="trk-t">${esc(m.t)}<span class="muted">　${a} / ${b} 手順</span></div><div class="mprog"><i style="width:${(a / b) * 100}%"></i></div>
+        <ol class="trk-steps">${m.steps.map(([k, l], i) => `<li class="${st[k] ? "ok" : nextStep && nextStep[0] === k ? "next" : ""}" data-sk="${k}" data-tip="${esc("手順 " + (i + 1) + "：" + l + (st[k] ? "（完了）" : nextStep && nextStep[0] === k ? "（次にやること）" : "（未完了）"))}"><span>${st[k] ? "✓" : i + 1}</span>${esc(l)}</li>`).join("")}</ol>
+        <label class="check trk-coach"><input type="checkbox" id="coachOn" ${coachOff ? "" : "checked"}>次に押す場所を光らせる</label>`;
+    const q = (s) => el.querySelector(s);
+    if (q("[data-trk-min]")) q("[data-trk-min]").onclick = () => { trackerCollapsed = true; try { sessionStorage.setItem(PREFIX + "trk", "0"); } catch (e) { /* noop */ } renderTracker(); };
+    if (q("[data-trk-open]")) q("[data-trk-open]").onclick = () => { trackerCollapsed = false; try { sessionStorage.setItem(PREFIX + "trk", "1"); } catch (e) { /* noop */ } renderTracker(); };
+    if (q("[data-trk-next]")) q("[data-trk-next]").onclick = () => { trackerIdx++; renderTracker(); };
+    if (q("#coachOn")) q("#coachOn").onchange = (e) => { coachOff = !e.target.checked; try { sessionStorage.setItem(PREFIX + "coach", coachOff ? "0" : "1"); } catch (er) { /* noop */ } applyCoach(); };
+    applyCoach();
+  }
+  let coachOff = false;
+  try { coachOff = sessionStorage.getItem(PREFIX + "coach") === "0"; } catch (e) { /* noop */ }
+  function clearCoach() { $$(".coach-target").forEach((x) => x.classList.remove("coach-target")); }
+  function applyCoach() {
+    clearCoach();
+    if (coachOff || trackerCollapsed || trainingOn()) return;
+    const list = pageMissions(); if (!list.length) return;
+    const m = list[Math.min(trackerIdx, list.length - 1)], st = stepsOf(m.id);
+    const nx = m.steps.find(([k]) => !st[k]);
+    if (!nx || !nx[2]) return;
+    const el = typeof nx[2] === "function" ? nx[2]() : $(nx[2]);
+    if (el) el.classList.add("coach-target");
+  }
+  let coachRaf = 0;
+  function coachWanted() {
+    if (coachOff || trackerCollapsed || trainingOn()) return null;
+    const list = pageMissions(); if (!list.length) return null;
+    const m = list[Math.min(trackerIdx, list.length - 1)], st = stepsOf(m.id);
+    const nx = m.steps.find(([k]) => !st[k]);
+    if (!nx || !nx[2]) return null;
+    return typeof nx[2] === "function" ? nx[2]() : $(nx[2]);
+  }
+  const coachObs = new MutationObserver(() => { if (coachRaf) return; coachRaf = requestAnimationFrame(() => { coachRaf = 0; const w = coachWanted(), cur = $(".coach-target"); if (w !== cur) applyCoach(); }); });
+
+  /* ポリシー画面の操作 → ミッションの手順 */
+  const POLICY_MISSIONS = {
+    ifw: [["ifw_allow", (r) => r.action === "Allow"]],
+    wan: [["wan_rule", (r) => r.action === "Allow"]],
+    tls: [["tls_bypass", (r) => r.action === "Bypass"]],
+    nr: [["nr_nat", (r) => r.ruleType === "Internet" && r.routeNat === "NAT" && !!r.natIp], ["nr_qos", (r) => r.enabled && r.prio !== "p255" && (r.app || []).some((a) => /Teams|Zoom/.test(a))]],
+    ccp: [["ccp_rule", () => true]]
+  };
+  App.policyEvent = (key, ev, data) => {
+    App.emit("policy:" + ev, { key, rule: ev === "apply" ? data : undefined, value: ev === "enable" ? data : undefined, published: ev === "publish" ? data : undefined });
+    (POLICY_MISSIONS[key] || []).forEach(([id, pred]) => {
+      if (isDone(id)) return;
+      const st = stepsOf(id);
+      if (ev === "new") App.step(id, "new");
+      else if (ev === "apply") {
+        if (pred(data)) App.step(id, "apply");
+        else if (!st.apply) {
+          const m = MBY(id), lab = (m.steps.find(([k]) => k === "apply") || [])[1];
+          if (lab) setTimeout(() => App.toast(`このルールはミッションの条件に合っていません。<br><b>条件：</b>${esc(lab)}`, "info", 5200, { title: "ミッションのヒント", group: "hint" }), 500);
+        }
+      } else if (ev === "enable") { if (data) App.step(id, "enable"); }
+      else if (ev === "save") { if (st.apply) App.step(id, "save"); }
+      else if (ev === "discard") {
+        if (st.apply || st.save) { App.unstep(id, ["apply", "save", "new"]); App.toast("Discard したため、このミッションの Apply 以降の手順が未完了に戻りました。", "warn", 5000, { title: "ミッションの手順が戻りました", group: "policy" }); }
+      }
+    });
+  };
+
+  /* ---------- 画面ごとの初回ポップアップ（この画面の使い方） ---------- */
+  App.pageHelp = (force) => {
+    const page = document.body.dataset.page;
+    if (!page || !document.body.dataset.tab) return;
+    const seen = App.db.get("pageSeen", {});
+    if (!force && (seen[page] || App.db.get("pageHelpOff", false) || trainingOn())) return;
+    $$(".page-help").forEach((x) => x.remove());
+    const h1 = $(".page-title h1, .site-head h1, #main h1");
+    const title = (h1 ? h1.textContent.replace(/\s+/g, " ").replace(/この画面の使い方$/, "").trim() : document.title.replace(/\s*\|\s*CMA Trainer$/, ""));
+    const tip = $("#main .tip");
+    const ms = App.MISSIONS.filter((m) => m.href === curPage());
+    const el = document.createElement("aside");
+    el.className = "page-help"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "この画面の使い方");
+    el.innerHTML = `<div class="ph-h">${App.icon("help")}<b>この画面の使い方</b><button class="t-x" type="button" aria-label="閉じる" data-ph-close>×</button></div>
+      <p class="ph-title">${esc(title)}</p>
+      ${tip ? `<div class="ph-body">${tip.innerHTML}</div>` : ""}
+      <ul class="ph-list"><li>ボタン・表の行・グラフにマウスを乗せると説明が出ます。</li>${ms.length ? ms.map((m) => `<li>この画面のミッション：<b>${esc(m.t)}</b>${isDone(m.id) ? "（達成済み）" : "（左下に手順を表示中）"}</li>`).join("") : ""}</ul>
+      <div class="ph-f"><label class="check"><input type="checkbox" id="phOff">今後どの画面でも自動で出さない</label><button class="btn btn-primary" type="button" data-ph-ok>わかった</button></div>`;
+    document.body.appendChild(el);
+    const close = () => { seen[page] = Date.now(); App.db.set("pageSeen", seen); if ($("#phOff", el).checked) App.db.set("pageHelpOff", true); el.classList.add("out"); setTimeout(() => el.remove(), 200); };
+    el.querySelector("[data-ph-close]").onclick = close; el.querySelector("[data-ph-ok]").onclick = close;
+    el.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  };
+
   App.renderMissions = renderMissions;
 
   /* ---------------- 上部バーのドロップダウン ---------------- */
@@ -659,6 +954,7 @@
 
     function openRule(i) {
       const isNew = i === -1;
+      if (isNew) App.policyEvent(cfg.key, "new");
       const model = isNew ? cfg.newRule() : clone(work.rules[i]);
       model.position = isNew ? 1 : i + 1;
       const total = work.rules.length + (isNew ? 1 : 0);
@@ -680,8 +976,9 @@
           delete m.position;
           if (isNew) { m.id = uid(); m._new = true; work.rules.splice(pos, 0, m); }
           else { work.rules.splice(i, 1); work.rules.splice(pos, 0, m); }
-          App.toast("ルールを適用しました。まだ保存されていません。次に［Save］を押します。", "warn");
+          App.toast("一覧に反映しました（黄色の帯＝未保存）。次は画面上部の<b>［Save］</b>です。", "warn", 5000, { title: "Apply 完了：まだ保存されていません", group: "policy", clear: ["step"] });
           markDirty(m.id);
+          App.policyEvent(cfg.key, "apply", m);
         },
         onDelete: isNew ? null : () => { work.rules.splice(i, 1); App.closePanel(); App.toast("ルールを削除しました（未保存）。", "warn"); markDirty(); }
       });
@@ -714,12 +1011,13 @@
       $("#btnSave", root).addEventListener("click", () => {
         save();
         App.audit(cfg.title, "Save", "Unpublished Revision", diffList().length + " 件の変更を保存");
-        App.toast("未公開リビジョンに保存しました。<b>まだ反映されていません。</b>［Publish］で全社に反映します。", "warn", 6000);
+        App.toast("自分専用の未公開リビジョンに保存しました（青い帯）。<b>まだ全社には反映されていません。</b>最後に<b>［Publish］</b>を押します。", "warn", 6500, { title: "Save 完了：あと Publish だけ", group: "policy", clear: ["step"] });
         render();
+        App.policyEvent(cfg.key, "save");
       });
       $("#btnDiscard", root).addEventListener("click", () => App.modal({
         title: "Discard Revision", body: "未公開リビジョンの変更をすべて破棄し、公開中のポリシーに戻します。<br>この操作は取り消せません。", ok: "Discard", danger: true,
-        onOk: () => { st.draft = null; App.db.set("pol." + cfg.key, st); work = clone(st.published); dirty = false; viewPublished = false; App.toast("未公開リビジョンを破棄しました。", "ok"); render(); }
+        onOk: () => { st.draft = null; App.db.set("pol." + cfg.key, st); work = clone(st.published); dirty = false; viewPublished = false; App.toast("未公開リビジョンを破棄し、公開中のポリシーに戻しました。", "ok", 4200, { title: "Discard 完了", group: "policy" }); render(); App.policyEvent(cfg.key, "discard"); }
       }));
       $("#btnPublish", root).addEventListener("click", () => {
         const diffs = diffList();
@@ -733,9 +1031,13 @@
             st.published = clone(work); st.draft = null; st.rev += 1;
             App.db.set("pol." + cfg.key, st);
             App.audit(cfg.title, "Publish", `Revision #${st.rev}`, diffs.map((d) => d.replace(/<[^>]+>/g, "")).join(" / "));
-            App.toast(`Revision #${st.rev} を公開しました。ポリシーが全社に反映されます。`, "ok");
+            const pb = $("#btnPublish", root);
+            App.burstFrom(pb, 70);
+            App.toast(`緑の帯＝全社に反映済みです。<ul class="t-list">${diffs.slice(0, 4).join("")}</ul>`, "ok", 6500, { title: `Revision #${st.rev} を公開しました`, group: "policy", clear: ["step"], action: { label: "Audit Trail で確認", href: "audit-trail.html" } });
             if (cfg.onPublish) cfg.onPublish(st.published, prev);
+            App.policyEvent(cfg.key, "publish", st.published);
             render();
+            const card = root.querySelector(".card"); if (card) { card.classList.remove("published-flash"); void card.offsetWidth; card.classList.add("published-flash"); }
           }
         });
       });
@@ -745,7 +1047,7 @@
       });
       const en = $("#polEnable", root);
       if (en) en.addEventListener("change", () => {
-        const apply = () => { work.enabled = en.checked; markDirty(); };
+        const apply = () => { work.enabled = en.checked; markDirty(); App.policyEvent(cfg.key, "enable", work.enabled); };
         if (!en.checked && cfg.enableWarnOff) {
           en.checked = true;
           App.modal({ title: "無効化の確認", body: cfg.enableWarnOff, ok: "無効にする", danger: true, onOk: () => { en.checked = false; apply(); } });
@@ -926,6 +1228,21 @@
     "Identity Provider": "連携している IdP。", "Last Sync": "最後に同期した日時。", "Synced Users": "同期されたユーザー数。",
     "Serial": "Socket 本体のシリアル番号。", "Model": "Socket の型番。", "Version": "Socket のソフトウェアバージョン。",
     "Subnet": "アドレス範囲。", "Local IP": "Socket の LAN 側 IP。", "DHCP": "DHCP の動作（サーバ／リレー）。",
+    "Site": "拠点（サイト）の名前。", "Health": "回線品質から判定した拠点の状態（良好／品質注意／切断中）。", "Bandwidth Usage": "契約帯域に対する使用率。85% 以上は増速の検討対象。",
+    "Packet Loss (%)": "パケットロス率。1% 以上は要注意。", "RTT (ms)": "PoP までの往復遅延。", "Jitter (ms)": "遅延の揺らぎ。5ms 以上は Web会議・電話に影響。", "Active Hosts": "通信している端末数。", "Top App": "通信量が一番多いアプリ。", "PoP": "接続している Cato の PoP。",
+    "User": "ユーザー（メールアドレス）。", "Connected Since / Last": "接続開始時刻、または最後に接続した時刻。", "Client Version": "Cato Client のバージョン。古いものは更新を案内。", "Country": "接続元の国。",
+    "Application": "アプリ・サービス名。", "Category": "アプリやチェック項目の分類。", "Traffic": "通信量。", "Users": "利用者数。", "Risk": "リスクの高さ。", "Risk Score": "リスクの高さ（10 が最も高い）。",
+    "Prefix": "宛先のアドレス範囲。", "Next Hop": "次に通る場所。", "Type": "種類。", "Origin": "どこから来た経路・登録元か。",
+    "Threats": "脅威の件数。", "Main Type": "主な脅威の種類。", "Signature": "検知した攻撃パターンの名前。", "Severity": "重大度（Critical が最も高い）。", "Count": "件数。",
+    "Destination": "通信の宛先。", "Data Type": "検知した機密データの種類。", "SaaS": "API 連携しているクラウドサービス。", "Issue": "見つかった問題。", "Owner": "持ち主・担当者。", "Last Scan": "最後にスキャンした日時。",
+    "Check": "推奨設定の項目。", "Result": "Passed＝満たしている、Failed＝未対応。", "Why it matters": "その設定が必要な理由。",
+    "ID": "ストーリーの番号。", "Title": "ストーリーの内容。", "User / Host": "関係するユーザーと端末。", "Created": "作成日時。",
+    "Description": "説明。", "Members": "グループに含まれる拠点・ホスト。", "Used in": "このグループ・プロファイルを使っているルール。",
+    "Domain": "転送するドメイン。", "DNS Server": "転送先の DNS サーバ。", "Condition": "チェックの条件。", "Pass Rate": "条件を満たす端末の割合。", "Profile": "プロファイル名。", "Device Checks（AND）": "すべて満たす必要があるチェック。",
+    "Engine": "脅威防御のエンジン。", "What it does": "エンジンの役割。", "Mode": "Block＝止める、Monitor＝記録のみ、Off＝無効。", "Reason": "例外にした理由・申請番号。",
+    "Hostname": "端末名。", "Posture": "端末の状態チェックの結果。", "Service": "セキュリティサービス。", "Note": "補足。", "Assigned": "割り当て状況。",
+    "Permission": "API キーの権限。View＝読み取り、Edit＝変更可。", "Allowed IPs": "API キーを使える接続元 IP。", "Expires": "有効期限。", "Last Used": "最後に使われた日時。", "Data Profile": "検知するデータの種類。", "Activity": "SaaS 内の操作（アップロードなど）。",
+    "Host": "端末。", "Main App": "主なアプリ。", "Mbps": "いまの通信量。", "Interface": "Socket の回線ポート。",
     "番号": "図中の番号に対応します。", "場所": "画面上の場所。", "役割": "その場所でできること。", "項目": "入力項目。", "入力のポイント": "間違えやすい点。"
   };
   /* 表の中の状態語 → 現状の説明 */
@@ -955,7 +1272,7 @@
     if (!table || !tr.closest("tbody")) return "";
     const heads = [...table.querySelectorAll("thead th")].map((th) => th.textContent.trim());
     const cells = [...tr.children];
-    if (cells.length === 1) return "";
+    if (cells.length === 1) return "【空の一覧】" + tr.textContent.trim() + "\n項目を追加すると、ここに並びます。";
     const parts = [];
     cells.forEach((td, i) => {
       let v = (td.innerText || td.textContent || "").replace(/\s+/g, " ").trim();
@@ -980,7 +1297,11 @@
     if (el.getAttribute && el.getAttribute("title") && !(el instanceof SVGElement)) { el.dataset.tip = el.title; el.removeAttribute("title"); return el.dataset.tip; }
     if (el.tagName === "TR") return rowTip(el);
     const txt = (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
-    if (el.tagName === "TH") return COLTIPS[txt] ? "列「" + txt + "」：" + COLTIPS[txt] : "";
+    if (el.tagName === "TH") {
+      const key = txt.replace(/\s*[▲▼]$/, "");
+      if (!key) return "";
+      return "列「" + key + "」：" + (COLTIPS[key] || "この列の値です。行にマウスを乗せると、その行の内容と状態がまとめて表示されます。") + (el.dataset.sort ? "\nクリックで並べ替えできます。" : "");
+    }
     if (el.matches && el.matches(".kv > div")) {
       const dt = el.querySelector("dt"), dd = el.querySelector("dd");
       const k = dt ? dt.textContent.trim() : "";
@@ -1093,7 +1414,7 @@
         <ol>
           <li><span>1</span><div><b>変更の反映ルールを覚える</b>：Apply → <b>Save</b> → <b>Publish</b>。Save だけでは反映されません。</div></li>
           <li><span>2</span><div><b>Topology で全体を確認</b>：赤い拠点（切断）がないかを見るのが毎日の第一歩です。</div></li>
-          <li><span>3</span><div><b>研修ミッションを上から順に</b>：右下のボタンから。1つ目は Internet Firewall のルール追加が最重要です。</div></li>
+          <li><span>3</span><div><b>トレーニングはチュートリアルから</b>：右上の［トレーニング］を開き、光る場所を順に押して流れを体験。クリアしたら「ガイドなし」の実践チャレンジに進みます。</div></li>
         </ol>
       </div>
       <div class="tour-f"><label class="check"><input type="checkbox" id="tourNo" checked>次回から自動で表示しない</label>
@@ -1103,6 +1424,8 @@
     const close = () => {
       if ($("#tourNo", m).checked) App.db.set("tourSeen", true);
       m.remove();
+      App.emit("tour:close", {});
+      setTimeout(() => { if (!(App.trainer && App.trainer.claimsStartup())) App.pageHelp(); }, 250);
     };
     m.addEventListener("click", (e) => { if (e.target === m || e.target.closest("[data-go]")) close(); if (e.target.closest("a.btn")) App.db.set("tourSeen", true); });
     m.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
@@ -1112,7 +1435,31 @@
   /* ---------------- 起動 ---------------- */
   document.addEventListener("DOMContentLoaded", () => {
     renderShell();
-    if (!document.body.dataset.nomission) renderMissions();
-    if (!document.body.dataset.notour && !App.db.get("tourSeen", null)) setTimeout(App.tour, 250);
+    if (!document.body.dataset.nomission) {
+      // この画面を開いたことを「visit」手順としてチェック（通知は出さない）
+      App.MISSIONS.filter((m) => m.href === curPage()).forEach((m) => App.step(m.id, "visit", { quiet: true }));
+      renderMissions();
+      renderTracker();
+      coachObs.observe(document.body, { childList: true, subtree: true });
+    }
+    // 見出しの横に「この画面の使い方」ボタン
+    const pt = $(".page-title, .site-head");
+    if (pt && document.body.dataset.tab) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn btn-text ph-open"; b.dataset.tip = "この画面の使い方をもう一度表示します。";
+      b.innerHTML = App.icon("help") + "この画面の使い方";
+      b.onclick = () => App.pageHelp(true);
+      pt.appendChild(b);
+    }
+    if (App.db.get("gradPending", false)) setTimeout(App.graduation, 700);
+    else if (!document.body.dataset.notour && !App.db.get("tourSeen", null)) setTimeout(App.tour, 250);
+    else setTimeout(() => { if (!(App.trainer && App.trainer.claimsStartup())) App.pageHelp(); }, 400);
+    // 別のタブでの操作もリアルタイムに反映
+    window.addEventListener("storage", (e) => {
+      if (!e.key || e.key.indexOf(PREFIX) !== 0) return;
+      const k = e.key.slice(PREFIX.length);
+      if (k === "missions" || k === "msteps") { renderMissions(); renderTracker(); }
+      if (k === "notifs") updateBell();
+    });
   });
 })();

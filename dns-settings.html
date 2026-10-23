@@ -18,13 +18,15 @@
     <div class="row2"><div class="field"><label for="d1">Custom Primary</label><input class="input" id="d1" placeholder="例：8.8.8.8"></div><div class="field"><label for="d2">Custom Secondary</label><input class="input" id="d2" placeholder="例：1.1.1.1"></div></div>
   </div></div>
   <div class="card"><div class="card-h"><h2>Domain Forwarding（条件付き転送）</h2><span class="muted">このドメインの問い合わせは、指定の DNS サーバへ</span></div>
-    <div class="card-b"><div class="row2" style="grid-template-columns:1fr 1fr auto;align-items:end"><div class="field"><label for="fd">Domain</label><input class="input" id="fd" placeholder="例：corp.example.local"></div><div class="field"><label for="fs">DNS Server</label><input class="input" id="fs" placeholder="例：10.10.0.10"></div><div class="field"><button class="btn" id="add" type="button" data-tip="入力したドメインと転送先を一覧に追加します。最後に Save が必要です。">＋ Add</button></div></div></div>
+    <div class="card-b"><div class="row3"><div class="field"><label for="fd">Domain</label><input class="input" id="fd" placeholder="例：corp.example.local"></div><div class="field"><label for="fs">DNS Server</label><input class="input" id="fs" placeholder="例：10.10.0.10"></div><div class="field"><button class="btn" id="add" type="button" data-tip="入力したドメインと転送先を一覧に追加します。最後に Save が必要です。">＋ Add</button></div></div></div>
     <div id="tbl"></div>
     <div class="status-banner pub" id="banner"></div>
     <div class="card-b"><button class="btn btn-primary" id="save" type="button">Save</button></div>
   </div>
 </main>
 <script src="assets/app.js"></script>
+<script src="assets/challenges.js"></script>
+<script src="assets/trainer.js"></script>
 <script>
 (function () {
   let D = App.db.get("dns", { mode: "cato", d1: "", d2: "", fwd: [] });
@@ -46,7 +48,7 @@
     document.getElementById("add").onclick = function () {
       const d = document.getElementById("fd").value.trim(), s = document.getElementById("fs").value.trim();
       if (!d || !/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) { App.toast("Domain と、DNS Server の IP アドレス（例：10.10.0.10）を入力してください。", "ng"); return; }
-      D.fwd.push({ d: d, s: s }); dirty = true; document.getElementById("fd").value = ""; document.getElementById("fs").value = ""; draw();
+      D.fwd.push({ d: d, s: s }); dirty = true; App.step("dns_fwd", "add"); document.getElementById("fd").value = ""; document.getElementById("fs").value = ""; draw();
     };
     document.getElementById("save").onclick = function () {
       D.mode = document.querySelector('input[name="dnsmode"]:checked').value; D.d1 = document.getElementById("d1").value; D.d2 = document.getElementById("d2").value;

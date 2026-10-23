@@ -22,6 +22,8 @@
   </div>
 </main>
 <script src="assets/app.js"></script>
+<script src="assets/challenges.js"></script>
+<script src="assets/trainer.js"></script>
 <script>
 (function () {
   const ROLES = ["Editor", "Viewer", "Security Editor（カスタム例）", "Network Viewer（カスタム例）"];
@@ -78,6 +80,7 @@
     draw();
     document.getElementById("q").addEventListener("input", draw);
     document.getElementById("new").onclick = function () {
+      App.step("admin_add", "new");
       const f = form({ first: "", last: "", email: "", role: "Viewer", noExpire: false }, true);
       // 研修版：入力チェックは行わず、何を入れても次へ進む
       f.onApply = function (m) {
